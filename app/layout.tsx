@@ -1,21 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/components/AuthContext";
 
 export const metadata: Metadata = {
   title: "woo.moi",
-  description: "Creative Developer",
+  description: "woo kyung-min",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
-      <body>
-        <AuthProvider>{children}</AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
