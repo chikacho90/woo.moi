@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /woovis/
+Disallow: /ootd/
+Disallow: /do/
+Disallow: /think/
+
+Sitemap: https://woo.moi/sitemap.xml
