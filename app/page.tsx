@@ -1,3 +1,3 @@
 export default function Home() {
-  return <main className="w-screen h-screen bg-[#06060f]" />;
+  return <main className="fixed inset-0 bg-[#06060f] overflow-hidden" />;
 }
