@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 const BG_LOCKED = "#06060f";
 const BG_UNLOCKED = "#0f0618";
@@ -11,6 +12,7 @@ export default function Home() {
   const [value, setValue] = useState("");
   const [shake, setShake] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Check session on mount
   useEffect(() => {
@@ -28,6 +30,14 @@ export default function Home() {
 
   const submit = useCallback(async () => {
     if (!value.trim()) return;
+
+    // Route commands when authed
+    if (authed && value.startsWith("/")) {
+      const route = value.trim();
+      close();
+      router.push(route);
+      return;
+    }
 
     if (authed) {
       // Logout: type password again to lock
