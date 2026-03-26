@@ -85,19 +85,24 @@ export default function Home() {
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
   }, [open]);
 
-  // Mobile: double tap anywhere to open
+  // Mobile: long press to open
   useEffect(() => {
-    let lastTap = 0;
-    function onTouch() {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function onStart() {
       if (open) return;
-      const now = Date.now();
-      if (now - lastTap < 400) {
-        setOpen(true);
-      }
-      lastTap = now;
+      timer = setTimeout(() => setOpen(true), 500);
     }
-    document.addEventListener("touchstart", onTouch, { passive: true });
-    return () => document.removeEventListener("touchstart", onTouch);
+    function onEnd() {
+      if (timer) { clearTimeout(timer); timer = null; }
+    }
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchend", onEnd, { passive: true });
+    document.addEventListener("touchmove", onEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchmove", onEnd);
+    };
   }, [open]);
 
   return (
@@ -130,7 +135,7 @@ export default function Home() {
               className={`bg-transparent border-b border-white/15 px-2 py-2 text-base text-white/70 font-mono focus:outline-none focus:border-white/30 w-56 transition-transform ${
                 shake ? "animate-shake" : ""
               }`}
-              style={{ caretColor: "rgba(255,255,255,0.4)", WebkitTextSecurity: "disc" } as React.CSSProperties}
+              style={{ caretColor: "rgba(255,255,255,0.4)" }}
             />
           </div>
         </div>
