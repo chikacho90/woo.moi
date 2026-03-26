@@ -85,20 +85,19 @@ export default function Home() {
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
   }, [open]);
 
-  // Mobile: double tap to open
+  // Mobile: double tap anywhere to open
   useEffect(() => {
     let lastTap = 0;
-    function onTouch(e: TouchEvent) {
+    function onTouch() {
       if (open) return;
       const now = Date.now();
-      if (now - lastTap < 300) {
-        e.preventDefault();
+      if (now - lastTap < 400) {
         setOpen(true);
       }
       lastTap = now;
     }
-    window.addEventListener("touchend", onTouch, { passive: false });
-    return () => window.removeEventListener("touchend", onTouch);
+    document.addEventListener("touchstart", onTouch, { passive: true });
+    return () => document.removeEventListener("touchstart", onTouch);
   }, [open]);
 
   return (
@@ -115,18 +114,23 @@ export default function Home() {
           <div onClick={(e) => e.stopPropagation()}>
             <input
               ref={inputRef}
-              type="password"
+              type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") submit();
                 if (e.key === "Escape") close();
               }}
-              placeholder="···"
+              placeholder=""
               autoFocus
-              className={`bg-transparent border border-white/10 rounded-lg px-6 py-3 text-base text-white/80 text-center font-mono placeholder-white/15 focus:outline-none focus:border-white/25 w-48 transition-transform ${
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              className={`bg-transparent border-b border-white/15 px-2 py-2 text-base text-white/70 font-mono focus:outline-none focus:border-white/30 w-56 transition-transform ${
                 shake ? "animate-shake" : ""
               }`}
+              style={{ caretColor: "rgba(255,255,255,0.4)", WebkitTextSecurity: "disc" } as React.CSSProperties}
             />
           </div>
         </div>
