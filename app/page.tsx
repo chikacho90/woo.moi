@@ -85,24 +85,20 @@ export default function Home() {
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
   }, [open]);
 
-  // Mobile: long press to open
+  // Mobile: triple tap to open
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    function onStart() {
+    let taps: number[] = [];
+    function onTouch() {
       if (open) return;
-      timer = setTimeout(() => setOpen(true), 500);
+      const now = Date.now();
+      taps = [...taps.filter((t) => now - t < 600), now];
+      if (taps.length >= 3) {
+        taps = [];
+        setOpen(true);
+      }
     }
-    function onEnd() {
-      if (timer) { clearTimeout(timer); timer = null; }
-    }
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchend", onEnd, { passive: true });
-    document.addEventListener("touchmove", onEnd, { passive: true });
-    return () => {
-      document.removeEventListener("touchstart", onStart);
-      document.removeEventListener("touchend", onEnd);
-      document.removeEventListener("touchmove", onEnd);
-    };
+    document.addEventListener("touchend", onTouch, { passive: true });
+    return () => document.removeEventListener("touchend", onTouch);
   }, [open]);
 
   return (
