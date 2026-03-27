@@ -183,20 +183,21 @@ export default function AIPage() {
         </div>
       </div>
 
-      {/* Panel overlay */}
+      {/* Center modal */}
       {(activeMenu) && (
-        <div
-          className="fixed inset-x-0 bottom-0 top-auto max-h-[60vh] bg-[#0a0a14] border-t border-white/5 overflow-y-auto z-40 rounded-t-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="w-full max-w-md mx-auto px-5 py-5">
-            {/* Panel header */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[11px] font-mono text-white/25">
-                {activeMenu === "brain" ? "🧠 shared" : `${bot(activeBot!).persona.emoji} ${activeMenu}`}
-              </span>
-              <button onClick={closePanel} className="text-[11px] font-mono text-white/15 hover:text-white/30">×</button>
-            </div>
+        <div className="fixed inset-0 flex items-center justify-center z-40 p-5" onClick={closePanel}>
+          <div
+            className="w-full max-w-sm max-h-[70vh] bg-[#0c0c18] border border-white/5 rounded-2xl overflow-y-auto shadow-2xl shadow-black/50 animate-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4">
+              {/* Panel header */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[11px] font-mono text-white/25">
+                  {activeMenu === "brain" ? "🧠 shared" : `${bot(activeBot!).persona.emoji} ${activeMenu}`}
+                </span>
+                <button onClick={closePanel} className="text-[11px] font-mono text-white/15 hover:text-white/30">×</button>
+              </div>
 
             {/* Brain panel */}
             {activeMenu === "brain" && (
@@ -290,6 +291,7 @@ export default function AIPage() {
                 );
               })
             )}
+            </div>
           </div>
         </div>
       )}
