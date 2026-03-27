@@ -157,20 +157,24 @@ export default function AIPage() {
                 }`}>{p.name || id}</div>
 
                 {/* Orbiting menu items */}
-                {isActive && MENUS.map((menu) => {
+                {isActive && MENUS.map((menu, mi) => {
                   const mRad = ((menu.angle + BOT_POS[i].angle + 180) * Math.PI) / 180;
                   const mx = Math.cos(mRad) * 50;
                   const my = -Math.sin(mRad) * 50;
                   return (
-                    <button
+                    <div
                       key={menu.id}
-                      onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === menu.id ? null : menu.id as ActiveMenu); setEditingPersona(false); }}
-                      className={`absolute left-1/2 top-1/2 w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all animate-pop ${
-                        activeMenu === menu.id ? "bg-white/15 scale-110" : "bg-white/[0.06] hover:bg-white/10"
-                      }`}
-                      style={{ transform: `translate(calc(-50% + ${mx}px), calc(-50% + ${my}px))` }}
-                      title={menu.label}
-                    >{menu.icon}</button>
+                      className="absolute"
+                      style={{ left: `calc(50% + ${mx}px - 18px)`, top: `calc(50% + ${my}px - 18px)`, animationDelay: `${mi * 50}ms` }}
+                    >
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === menu.id ? null : menu.id as ActiveMenu); setEditingPersona(false); }}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all animate-pop ${
+                          activeMenu === menu.id ? "bg-white/15 scale-110" : "bg-white/[0.06] hover:bg-white/10"
+                        }`}
+                        title={menu.label}
+                      >{menu.icon}</button>
+                    </div>
                   );
                 })}
               </div>
