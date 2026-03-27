@@ -2,249 +2,292 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-interface BrainFile { path: string; size: number; }
-interface FileContent { path: string; content: string; sha: string; }
+interface Memory { id: string; text: string; owner: string; shared: boolean; ts: string; }
+interface Skill { id: string; name: string; desc: string; by: string; bots: Record<string, boolean>; }
 
 const BOTS = [
-  { id: "woovis", name: "우비스", role: "home mac", emoji: "🦄", color: "#8b5cf6" },
-  { id: "9oovis", name: "구비스", role: "work mac", emoji: "🐙", color: "#06b6d4" },
-  { id: "pulmang", name: "풀망", role: "windows", emoji: "🔥", color: "#f97316" },
+  { id: "woovis", name: "우비스", emoji: "🦄" },
+  { id: "9oovis", name: "구비스", emoji: "🐙" },
+  { id: "pulmang", name: "풀망", emoji: "🔥" },
 ];
 
-const TABS = ["bots", "memory", "logs", "tasks", "setup"] as const;
-type Tab = (typeof TABS)[number];
+type View = null | "brain" | "woovis" | "9oovis" | "pulmang";
+type BotTab = "memory" | "skills";
 
 export default function AIPage() {
-  const [files, setFiles] = useState<BrainFile[]>([]);
-  const [tab, setTab] = useState<Tab>("bots");
-  const [selected, setSelected] = useState<FileContent | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [memSha, setMemSha] = useState<string | null>(null);
+  const [skillSha, setSkillSha] = useState<string | null>(null);
+  const [view, setView] = useState<View>(null);
+  const [botTab, setBotTab] = useState<BotTab>("memory");
   const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 1500); };
 
-  const loadFiles = useCallback(async () => {
-    setLoading(true);
-    const r = await fetch("/ai/api/brain");
-    const data = await r.json();
-    setFiles(data.files || []);
-    setLoading(false);
+  const load = useCallback(async () => {
+    const [mRes, sRes] = await Promise.all([
+      fetch("/ai/api/data?type=memories"),
+      fetch("/ai/api/data?type=skills"),
+    ]);
+    const mData = await mRes.json();
+    const sData = await sRes.json();
+    setMemories(mData.items || []);
+    setMemSha(mData.sha);
+    setSkills(sData.items || []);
+    setSkillSha(sData.sha);
   }, []);
 
-  useEffect(() => { loadFiles(); }, [loadFiles]);
+  useEffect(() => { load(); }, [load]);
 
-  const openFile = async (path: string) => {
-    const r = await fetch(`/ai/api/brain?path=${encodeURIComponent(path)}`);
-    if (r.ok) {
-      const data = await r.json();
-      setSelected(data);
-      setEditing(false);
-      setEditContent(data.content);
-    }
-  };
-
-  const saveFile = async () => {
-    if (!selected) return;
+  // Save helpers
+  const saveMemories = async (next: Memory[]) => {
     setSaving(true);
-    const r = await fetch("/ai/api/brain", {
+    const r = await fetch("/ai/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: selected.path, content: editContent, sha: selected.sha }),
+      body: JSON.stringify({ type: "memories", items: next, sha: memSha }),
     });
-    const data = await r.json();
-    if (data.ok) {
-      setSelected({ ...selected, content: editContent, sha: data.sha });
-      setEditing(false);
-      showToast("saved");
-    }
+    const d = await r.json();
+    if (d.ok) { setMemories(next); setMemSha(d.sha); }
     setSaving(false);
+    return d.ok;
   };
 
-  const deleteFile = async () => {
-    if (!selected || !confirm(`delete ${selected.path}?`)) return;
-    const r = await fetch("/ai/api/brain", {
-      method: "DELETE",
+  const saveSkills = async (next: Skill[]) => {
+    setSaving(true);
+    const r = await fetch("/ai/api/data", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: selected.path, sha: selected.sha }),
+      body: JSON.stringify({ type: "skills", items: next, sha: skillSha }),
     });
-    if ((await r.json()).ok) { setSelected(null); showToast("deleted"); loadFiles(); }
+    const d = await r.json();
+    if (d.ok) { setSkills(next); setSkillSha(d.sha); }
+    setSaving(false);
+    return d.ok;
   };
 
-  const filterFiles = (prefix: string) =>
-    files.filter((f) => f.path.startsWith(prefix) && !f.path.endsWith(".gitkeep")).sort((a, b) => b.path.localeCompare(a.path));
-
-  const tabFiles = tab === "memory" ? filterFiles("memory/") : tab === "logs" ? filterFiles("logs/") : tab === "tasks" ? filterFiles("tasks/") : filterFiles("setup/");
-
-  const botActivity = (id: string) => {
-    const log = filterFiles("logs/").find((f) => f.path.includes(id));
-    return log?.path.match(/(\d{4}-\d{2}-\d{2})/)?.[1] || "—";
+  // Memory actions
+  const toggleShare = async (id: string) => {
+    const next = memories.map((m) => m.id === id ? { ...m, shared: !m.shared } : m);
+    if (await saveMemories(next)) showToast("updated");
   };
 
-  // Detail overlay
-  if (selected) {
-    return (
-      <div className="fixed inset-0 bg-[#06060f] flex flex-col">
-        <div className="w-full max-w-2xl mx-auto flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4">
-            <button
-              onClick={() => { setSelected(null); setEditing(false); }}
-              className="text-xs font-mono text-white/25 hover:text-white/50 transition-colors"
-            >
-              ← back
-            </button>
-            <span className="text-[11px] font-mono text-white/20 truncate mx-4">{selected.path}</span>
-            <div className="flex gap-4">
-              {editing ? (
-                <>
-                  <button onClick={saveFile} disabled={saving} className="text-xs font-mono text-green-400/50 hover:text-green-400/80 disabled:opacity-30">
-                    {saving ? "..." : "save"}
-                  </button>
-                  <button onClick={() => { setEditing(false); setEditContent(selected.content); }} className="text-xs font-mono text-white/20 hover:text-white/40">
-                    cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => setEditing(true)} className="text-xs font-mono text-white/20 hover:text-white/40">edit</button>
-                  <button onClick={deleteFile} className="text-xs font-mono text-red-400/20 hover:text-red-400/50">delete</button>
-                </>
-              )}
-            </div>
-          </div>
+  const deleteMemory = async (id: string) => {
+    const next = memories.filter((m) => m.id !== id);
+    if (await saveMemories(next)) showToast("deleted");
+  };
 
-          <div className="h-px bg-white/5 mx-5" />
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            {editing ? (
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full h-full min-h-[70vh] bg-transparent text-sm font-mono text-white/55 leading-relaxed focus:outline-none resize-none"
-                spellCheck={false}
-                autoCapitalize="off"
-              />
-            ) : (
-              <pre className="text-sm font-mono text-white/45 whitespace-pre-wrap leading-relaxed">{selected.content}</pre>
-            )}
-          </div>
-        </div>
-
-        {toast && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/8 backdrop-blur rounded-full text-[11px] font-mono text-white/50">
-            {toast}
-          </div>
-        )}
-      </div>
+  // Skill actions
+  const toggleSkill = async (skillId: string, botId: string) => {
+    const next = skills.map((s) =>
+      s.id === skillId ? { ...s, bots: { ...s.bots, [botId]: !s.bots[botId] } } : s
     );
-  }
+    if (await saveSkills(next)) showToast("updated");
+  };
+
+  // Filtered data
+  const botMemories = (id: string) => memories.filter((m) => m.owner === id);
+  const sharedMemories = memories.filter((m) => m.shared);
+
+  const activeBot = BOTS.find((b) => b.id === view);
 
   return (
     <div className="fixed inset-0 bg-[#06060f] overflow-y-auto">
-      <div className="w-full max-w-2xl mx-auto px-5 py-6 sm:py-10">
+      <div className="w-full max-w-lg mx-auto px-5 py-8 sm:py-12 min-h-screen">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <a href="/" className="text-xs font-mono text-white/15 hover:text-white/30 transition-colors">← home</a>
-          <h1 className="text-[11px] font-mono tracking-[0.3em] text-white/20 uppercase">shared brain</h1>
-          <div className="w-12" />
+        {/* Back to home */}
+        <div className="mb-10">
+          <a href="/" className="text-[11px] font-mono text-white/15 hover:text-white/30">← home</a>
         </div>
 
-        {/* Tabs */}
-        <div className="flex justify-center gap-1 mb-8">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 text-[11px] font-mono tracking-wider rounded-full transition-all ${
-                tab === t
-                  ? "bg-white/8 text-white/70"
-                  : "text-white/20 hover:text-white/40"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {/* Hub: Brain center + 3 bots */}
+        <div className="flex flex-col items-center gap-6 mb-10">
+          {/* Brain */}
+          <button
+            onClick={() => { setView(view === "brain" ? null : "brain"); }}
+            className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all ${
+              view === "brain"
+                ? "bg-white/10 ring-1 ring-white/20 scale-110"
+                : "bg-white/4 hover:bg-white/8"
+            }`}
+          >
+            🧠
+          </button>
+          <div className="text-[10px] font-mono text-white/15 -mt-4">shared brain</div>
 
-        {/* Bots */}
-        {tab === "bots" && (
-          <div className="space-y-4">
+          {/* Bots row */}
+          <div className="flex gap-6">
             {BOTS.map((bot) => (
-              <div key={bot.id} className="group border border-white/6 rounded-2xl p-5 hover:border-white/12 transition-all">
-                <div className="flex items-center gap-4 mb-4">
-                  <span className="text-2xl">{bot.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-mono text-white/70">{bot.name}</div>
-                    <div className="text-[11px] font-mono text-white/20">{bot.role}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-mono text-white/15">last active</div>
-                    <div className="text-[11px] font-mono text-white/30">{botActivity(bot.id)}</div>
-                  </div>
+              <button
+                key={bot.id}
+                onClick={() => { setView(view === bot.id ? null : (bot.id as View)); setBotTab("memory"); }}
+                className={`flex flex-col items-center gap-2 transition-all ${
+                  view === bot.id ? "scale-110" : ""
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl transition-all ${
+                  view === bot.id
+                    ? "bg-white/10 ring-1 ring-white/20"
+                    : "bg-white/4 hover:bg-white/8"
+                }`}>
+                  {bot.emoji}
                 </div>
-                <div className="flex gap-2">
-                  {["memory", "setup", "logs"].map((section) => (
-                    <button
-                      key={section}
-                      onClick={() => {
-                        if (section === "logs") { setTab("logs"); }
-                        else { setTab(section as Tab); setTimeout(() => openFile(`${section}/${bot.id}.md`), 50); }
-                      }}
-                      className="flex-1 py-2 text-[11px] font-mono text-white/20 rounded-lg border border-white/5 hover:bg-white/5 hover:text-white/40 active:bg-white/8 transition-all"
-                    >
-                      {section}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                <span className={`text-[10px] font-mono transition-colors ${
+                  view === bot.id ? "text-white/50" : "text-white/15"
+                }`}>
+                  {bot.name}
+                </span>
+              </button>
             ))}
-
-            {/* Shared facts */}
-            <button
-              onClick={() => { setTab("memory"); setTimeout(() => openFile("memory/shared-facts.md"), 50); }}
-              className="w-full border border-white/6 rounded-2xl p-5 text-left hover:border-white/12 transition-all"
-            >
-              <div className="text-[10px] font-mono text-white/15 mb-1">shared knowledge</div>
-              <div className="text-sm font-mono text-white/40">shared-facts.md</div>
-            </button>
           </div>
-        )}
+        </div>
 
-        {/* File list */}
-        {tab !== "bots" && (
-          <div className="space-y-1">
-            {loading ? (
-              <div className="text-center py-12 text-xs font-mono text-white/10">loading...</div>
-            ) : tabFiles.length === 0 ? (
-              <div className="text-center py-12 text-xs font-mono text-white/10">empty</div>
+        {/* Content panel */}
+        {view === "brain" && (
+          <div className="space-y-2">
+            <div className="text-[10px] font-mono text-white/20 mb-4 text-center">
+              shared memories · {sharedMemories.length}
+            </div>
+            {sharedMemories.length === 0 ? (
+              <div className="text-center py-8 text-xs font-mono text-white/10">no shared memories yet</div>
             ) : (
-              tabFiles.map((f) => {
-                const name = f.path.split("/").pop() || f.path;
-                const bot = BOTS.find((b) => name.includes(b.id));
+              sharedMemories.map((m) => {
+                const bot = BOTS.find((b) => b.id === m.owner);
                 return (
-                  <button
-                    key={f.path}
-                    onClick={() => openFile(f.path)}
-                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left hover:bg-white/4 active:bg-white/6 transition-all"
-                  >
-                    {bot ? <span className="text-sm">{bot.emoji}</span> : <span className="text-sm opacity-30">📄</span>}
-                    <span className="flex-1 text-sm font-mono text-white/40 truncate">{name}</span>
-                    <span className="text-[10px] font-mono text-white/10">{f.size < 1024 ? `${f.size}b` : `${(f.size / 1024).toFixed(1)}k`}</span>
-                  </button>
+                  <div key={m.id} className="group border border-white/5 rounded-xl px-4 py-3 hover:border-white/10 transition-all">
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs mt-0.5">{bot?.emoji || "📝"}</span>
+                      <p className="flex-1 text-sm font-mono text-white/45 leading-relaxed">{m.text}</p>
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-[10px] font-mono text-white/10">{m.ts}</span>
+                      <span className="text-[10px] font-mono text-white/10">from {m.owner}</span>
+                    </div>
+                  </div>
                 );
               })
             )}
           </div>
         )}
+
+        {activeBot && (
+          <div>
+            {/* Bot tabs */}
+            <div className="flex justify-center gap-1 mb-6">
+              {(["memory", "skills"] as BotTab[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setBotTab(t)}
+                  className={`px-5 py-2 text-[11px] font-mono rounded-full transition-all ${
+                    botTab === t ? "bg-white/8 text-white/60" : "text-white/15 hover:text-white/30"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Bot memories */}
+            {botTab === "memory" && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-mono text-white/15 mb-4 text-center">
+                  {activeBot.name} memories · {botMemories(activeBot.id).length}
+                </div>
+                {botMemories(activeBot.id).length === 0 ? (
+                  <div className="text-center py-8 text-xs font-mono text-white/10">no memories</div>
+                ) : (
+                  botMemories(activeBot.id).map((m) => (
+                    <div key={m.id} className="group border border-white/5 rounded-xl px-4 py-3 hover:border-white/10 transition-all">
+                      <p className="text-sm font-mono text-white/45 leading-relaxed mb-3">{m.text}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-white/10">{m.ts}</span>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => toggleShare(m.id)}
+                            disabled={saving}
+                            className={`text-[11px] font-mono transition-colors ${
+                              m.shared
+                                ? "text-green-400/50 hover:text-green-400/70"
+                                : "text-white/15 hover:text-white/30"
+                            }`}
+                          >
+                            {m.shared ? "shared ✓" : "share"}
+                          </button>
+                          <button
+                            onClick={() => deleteMemory(m.id)}
+                            disabled={saving}
+                            className="text-[11px] font-mono text-white/10 hover:text-red-400/50 transition-colors"
+                          >
+                            delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Bot skills */}
+            {botTab === "skills" && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-mono text-white/15 mb-4 text-center">
+                  skills & permissions · {skills.length}
+                </div>
+                {skills.map((s) => {
+                  const isOn = s.bots[activeBot.id] || false;
+                  const isOrigin = s.by === activeBot.id;
+                  return (
+                    <div key={s.id} className="border border-white/5 rounded-xl px-4 py-3 hover:border-white/10 transition-all">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-mono text-white/50">{s.name}</span>
+                            {isOrigin && <span className="text-[9px] font-mono text-white/15 bg-white/5 px-1.5 py-0.5 rounded">origin</span>}
+                          </div>
+                          <p className="text-[11px] font-mono text-white/20 mt-1">{s.desc}</p>
+                        </div>
+                        <button
+                          onClick={() => toggleSkill(s.id, activeBot.id)}
+                          disabled={saving}
+                          className={`w-10 h-5 rounded-full flex items-center transition-all ml-4 flex-shrink-0 ${
+                            isOn ? "bg-green-500/30 justify-end" : "bg-white/5 justify-start"
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full mx-0.5 transition-all ${
+                            isOn ? "bg-green-400/70" : "bg-white/15"
+                          }`} />
+                        </button>
+                      </div>
+                      {/* Other bots status */}
+                      <div className="flex gap-3 mt-2">
+                        {BOTS.filter((b) => b.id !== activeBot.id).map((b) => (
+                          <span key={b.id} className={`text-[10px] font-mono ${s.bots[b.id] ? "text-white/25" : "text-white/8"}`}>
+                            {b.emoji} {s.bots[b.id] ? "on" : "off"}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!view && (
+          <div className="text-center py-8 text-xs font-mono text-white/10">
+            tap a bot or the brain
+          </div>
+        )}
       </div>
 
+      {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/8 backdrop-blur rounded-full text-[11px] font-mono text-white/50">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/8 backdrop-blur rounded-full text-[11px] font-mono text-white/50 z-50">
           {toast}
         </div>
       )}
