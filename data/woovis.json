@@ -14,8 +14,14 @@
     {"id":"m5","text":"우님 전화: +82 10 8756 1233","shared":true,"ts":"2026-03-26"},
     {"id":"m6","text":"여자친구 홍혜빈, 전화: +82 10 5191 3545","shared":true,"ts":"2026-03-26"},
     {"id":"m7","text":"회사: H9 인터랙션실 (성수동)","shared":true,"ts":"2026-03-26"},
-    {"id":"m8","text":"iCloud에서 git mmap deadlock → 로컬로 이전","shared":false,"ts":"2026-03-25"},
-    {"id":"m9","text":"open-next.config.ts가 Vercel 빌드 깨뜨림 → 삭제","shared":false,"ts":"2026-03-25"}
+    {"id":"m8","text":"iCloud에서 git mmap deadlock → 로컬 ~/Projects/woo.moi/로 이전","shared":false,"ts":"2026-03-25"},
+    {"id":"m9","text":"open-next.config.ts가 Vercel 빌드 깨뜨림 → 삭제","shared":false,"ts":"2026-03-25"},
+    {"id":"m10","text":"macOS 보안 다이얼로그는 프로그래밍 클릭 불가 (사람만 가능)","shared":true,"ts":"2026-03-25"},
+    {"id":"m11","text":"AppleScript keystroke 한글 불가 → pbcopy + Cmd+V","shared":true,"ts":"2026-03-25"},
+    {"id":"m12","text":"Vercel remote build enoent → 로컬 build + deploy --prebuilt","shared":true,"ts":"2026-03-25"},
+    {"id":"m13","text":"woo.moi 사이트 초기화: 랜딩 + 히든 auth + /ai 대시보드","shared":true,"ts":"2026-03-27"},
+    {"id":"m14","text":"3봇 체제: woovis(홈맥), 9oovis(회사맥), pulmang(윈도우)","shared":true,"ts":"2026-03-26"},
+    {"id":"m15","text":"GitHub 2FA 활성화 필요 (기한: 2026-05-01)","shared":true,"ts":"2026-03-26"}
   ],
   "skills": {
     "sudo NOPASSWD": true,
@@ -26,7 +32,10 @@
     "Vercel CLI": true,
     "Tailscale SSH": true,
     "fswatch": true,
-    "카카오톡": true
+    "카카오톡 (보류)": true,
+    "browser automation": true,
+    "OpenClaw cron": true,
+    "git credential store": true
   },
-  "updatedAt": "2026-03-27T03:00:00Z"
+  "updatedAt": "2026-03-27T06:11:00Z"
 }
