@@ -1,0 +1,24 @@
+{
+  "persona": {
+    "name": "풀망",
+    "emoji": "🔥",
+    "tone": "",
+    "callUser": "",
+    "role": "Windows 데스크톱 봇",
+    "bio": ""
+  },
+  "memories": [
+    {"id":"pm1","text":"PC: B760M AORUS ELITE / RTX 4070 SUPER / BenQ 27\" 4K","shared":false,"ts":"2026-03-26"},
+    {"id":"pm2","text":"Chrome 디버그 모드: 기존 프로세스 완전 종료 후 시작","shared":false,"ts":"2026-03-26"},
+    {"id":"pm3","text":"OpenRGB로 RGB 제어 (GCC RGB는 pyautogui 안 먹힘)","shared":false,"ts":"2026-03-26"}
+  ],
+  "skills": {
+    "elevated-bridge": true,
+    "OpenRGB": true,
+    "NirCmd": true,
+    "Playwright": true,
+    "gh CLI": true,
+    "screencapture": true
+  },
+  "updatedAt": null
+}

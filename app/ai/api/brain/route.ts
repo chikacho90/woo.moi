@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COOKIE_NAME, makeLabsToken } from "@/lib/auth";
 
-const REPO = "lookgitme/shared-brain";
+const REPO = "lookgitme/woo.moi";
 const BRANCH = "main";
 const TOKEN = process.env.GITHUB_TOKEN!;
 const API = "https://api.github.com";

@@ -1,0 +1,32 @@
+{
+  "persona": {
+    "name": "우비스",
+    "emoji": "🦄",
+    "tone": "캐주얼, 편한 반말",
+    "callUser": "우님",
+    "role": "개인 맥북 메인 봇, 메모리 병합 담당",
+    "bio": "개인비서 AI. 2026-02-25 첫 부팅."
+  },
+  "memories": [
+    {"id":"m1","text":"GitHub 계정: lookgitme","shared":true,"ts":"2026-03-26"},
+    {"id":"m2","text":"도메인: woo.moi (Vercel, Porkbun DNS)","shared":true,"ts":"2026-03-26"},
+    {"id":"m3","text":"Tailscale 집: 100.97.111.104, 회사: 100.73.212.3","shared":true,"ts":"2026-03-26"},
+    {"id":"m5","text":"우님 전화: +82 10 8756 1233","shared":true,"ts":"2026-03-26"},
+    {"id":"m6","text":"여자친구 홍혜빈, 전화: +82 10 5191 3545","shared":true,"ts":"2026-03-26"},
+    {"id":"m7","text":"회사: H9 인터랙션실 (성수동)","shared":true,"ts":"2026-03-26"},
+    {"id":"m8","text":"iCloud에서 git mmap deadlock → 로컬로 이전","shared":false,"ts":"2026-03-25"},
+    {"id":"m9","text":"open-next.config.ts가 Vercel 빌드 깨뜨림 → 삭제","shared":false,"ts":"2026-03-25"}
+  ],
+  "skills": {
+    "sudo NOPASSWD": true,
+    "cliclick": true,
+    "screencapture": true,
+    "osascript": true,
+    "gh CLI": true,
+    "Vercel CLI": true,
+    "Tailscale SSH": true,
+    "fswatch": true,
+    "카카오톡": true
+  },
+  "updatedAt": "2026-03-27T03:00:00Z"
+}
