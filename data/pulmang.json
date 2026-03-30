@@ -116,7 +116,8 @@
     "process-management": true,
     "registry-edit": true,
     "git-credential": true,
-    "vercel-cli": true
+    "vercel-cli": true,
+    "tailscale-ssh": true
   },
   "updatedAt": "2026-03-27T15:14:04.480320+09:00"
 }
