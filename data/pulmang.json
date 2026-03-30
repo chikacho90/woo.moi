@@ -115,7 +115,8 @@
     "shared-brain-sync": true,
     "process-management": true,
     "registry-edit": true,
-    "git-credential": true
+    "git-credential": true,
+    "vercel-cli": true
   },
   "updatedAt": "2026-03-27T15:14:04.480320+09:00"
 }
