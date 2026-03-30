@@ -40,7 +40,8 @@
     "file-management": true,
     "browser-automation": true,
     "screencapture": true,
-    "mouse-keyboard": true
+    "mouse-keyboard": true,
+    "tts": true
   },
   "updatedAt": "2026-03-30T10:27:00+09:00"
 }
