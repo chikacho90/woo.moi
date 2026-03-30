@@ -108,7 +108,8 @@
     "kakao-talk": true,
     "web-search": true,
     "tts": true,
-    "volume-control": true
+    "volume-control": true,
+    "elevated-bridge": true
   },
   "updatedAt": "2026-03-27T06:11:00Z"
 }
