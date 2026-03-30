@@ -109,7 +109,7 @@
     "web-search": true,
     "tts": true,
     "volume-control": true,
-    "elevated-bridge": true
+    "elevated-bridge": false
   },
   "updatedAt": "2026-03-27T06:11:00Z"
 }
