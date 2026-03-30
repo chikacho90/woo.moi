@@ -45,7 +45,8 @@
     "vercel-cli": true,
     "tailscale-ssh": true,
     "cron-scheduler": true,
-    "sudo-nopasswd": true
+    "sudo-nopasswd": true,
+    "elevated-bridge": true
   },
   "updatedAt": "2026-03-30T10:27:00+09:00"
 }
