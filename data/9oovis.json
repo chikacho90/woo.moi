@@ -43,7 +43,8 @@
     "mouse-keyboard": true,
     "tts": true,
     "vercel-cli": true,
-    "tailscale-ssh": true
+    "tailscale-ssh": true,
+    "cron-scheduler": true
   },
   "updatedAt": "2026-03-30T10:27:00+09:00"
 }
