@@ -39,7 +39,8 @@
     "shared-brain-sync": true,
     "file-management": true,
     "browser-automation": true,
-    "screencapture": true
+    "screencapture": true,
+    "mouse-keyboard": true
   },
   "updatedAt": "2026-03-30T10:27:00+09:00"
 }
