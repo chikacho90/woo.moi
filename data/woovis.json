@@ -109,7 +109,8 @@
     "web-search": true,
     "tts": true,
     "volume-control": true,
-    "elevated-bridge": false
+    "elevated-bridge": false,
+    "process-management": true
   },
   "updatedAt": "2026-03-27T06:11:00Z"
 }
