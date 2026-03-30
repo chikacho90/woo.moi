@@ -41,39 +41,52 @@ async function writeFile(path: string, content: string, sha?: string) {
   return { ok: r.ok, sha: d?.content?.sha };
 }
 
-// GET: read all bot data or single bot
+// GET: read all bot data + skills registry
 export async function GET(req: NextRequest) {
   if (!(await checkAuth())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const bot = req.nextUrl.searchParams.get("bot");
 
   if (bot) {
-    // Single bot
     const file = await readFile(`data/${bot}.json`);
     if (!file) return NextResponse.json({ data: null, sha: null });
     return NextResponse.json({ data: JSON.parse(file.content), sha: file.sha });
   }
 
-  // All bots
-  const results: Record<string, { data: unknown; sha: string | null }> = {};
-  await Promise.all(
-    BOTS.map(async (id) => {
-      const file = await readFile(`data/${id}.json`);
-      if (file) {
-        results[id] = { data: JSON.parse(file.content), sha: file.sha };
-      } else {
-        results[id] = { data: null, sha: null };
-      }
+  // All bots + skills registry
+  const results: Record<string, unknown> = {};
+  const fetches: Promise<void>[] = [];
+
+  for (const id of BOTS) {
+    fetches.push(
+      readFile(`data/${id}.json`).then((file) => {
+        results[id] = file
+          ? { data: JSON.parse(file.content), sha: file.sha }
+          : { data: null, sha: null };
+      })
+    );
+  }
+
+  // Skills registry
+  fetches.push(
+    readFile("data/skills.json").then((file) => {
+      results._skills = file
+        ? { data: JSON.parse(file.content), sha: file.sha }
+        : { data: { skills: [] }, sha: null };
     })
   );
+
+  await Promise.all(fetches);
   return NextResponse.json(results);
 }
 
-// PUT: update a bot's data
+// PUT: update a bot's data or skills registry
 export async function PUT(req: NextRequest) {
   if (!(await checkAuth())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { bot, data, sha } = await req.json();
-  if (!bot || !data) return NextResponse.json({ error: "missing bot or data" }, { status: 400 });
-  const result = await writeFile(`data/${bot}.json`, JSON.stringify(data, null, 2), sha);
+  if (!data) return NextResponse.json({ error: "missing data" }, { status: 400 });
+
+  const path = bot === "_skills" ? "data/skills.json" : `data/${bot}.json`;
+  const result = await writeFile(path, JSON.stringify(data, null, 2), sha);
   return NextResponse.json(result);
 }

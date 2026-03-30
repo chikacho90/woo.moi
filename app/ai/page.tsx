@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 interface Memory { id: string; text: string; shared: boolean; ts: string; }
 interface Persona { name: string; emoji: string; tone: string; callUser: string; role: string; bio: string; }
 interface BotData { persona: Persona; memories: Memory[]; skills: Record<string, boolean>; updatedAt: string | null; }
+interface SkillDef { id: string; name: string; desc: string; setup: string; manualSteps: string[]; }
 
 const BOT_IDS = ["woovis", "9oovis", "pulmang"] as const;
 const EMPTY_PERSONA: Persona = { name: "", emoji: "?", tone: "", callUser: "", role: "", bio: "" };
@@ -18,10 +19,12 @@ type BrainTab = "memory" | "skills";
 
 export default function AIPage() {
   const [bots, setBots] = useState<Record<string, { data: BotData; sha: string | null }>>({});
+  const [skillDefs, setSkillDefs] = useState<SkillDef[]>([]);
   const [modal, setModal] = useState<Modal>(null);
   const [brainTab, setBrainTab] = useState<BrainTab>("memory");
   const [editingPersona, setEditingPersona] = useState(false);
   const [editP, setEditP] = useState<Persona>(EMPTY_PERSONA);
+  const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +39,7 @@ export default function AIPage() {
       if (!mapped[id].data) mapped[id].data = EMPTY_BOT;
     }
     setBots(mapped);
+    if (d._skills?.data?.skills) setSkillDefs(d._skills.data.skills);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -56,19 +60,17 @@ export default function AIPage() {
     return d.ok;
   };
 
-  // Toggle a memory's visibility for a specific bot
-  // If memory belongs to that bot: toggle shared flag
-  // If memory belongs to another bot: we need to copy/remove from target bot
+  // Toggle skill for a bot
+  const toggleSkillForBot = async (skillId: string, botId: string) => {
+    const b = bot(botId);
+    const on = b.skills[skillId] || false;
+    const next = { ...b, skills: { ...b.skills, [skillId]: !on } };
+    if (await saveBot(botId, next)) showToast(!on ? "enabled" : "disabled");
+  };
+
+  // Toggle memory for a bot (copy to / remove from target bot)
   const toggleMemoryForBot = async (memId: string, ownerBot: string, targetBot: string) => {
-    if (ownerBot === targetBot) {
-      // Toggle shared on the owner's memory
-      const b = bot(ownerBot);
-      const mem = b.memories.find((m) => m.id === memId);
-      if (!mem) return;
-      // Can't turn off for owner — owner always has it
-      return;
-    }
-    // For other bots: copy or remove the memory
+    if (ownerBot === targetBot) return; // owner always has it
     const ownerData = bot(ownerBot);
     const mem = ownerData.memories.find((m) => m.id === memId);
     if (!mem) return;
@@ -83,35 +85,24 @@ export default function AIPage() {
     if (await saveBot(targetBot, next)) showToast(has ? "removed" : "synced");
   };
 
-  // Toggle a skill for a specific bot
-  const toggleSkillForBot = async (skill: string, botId: string) => {
-    const b = bot(botId);
-    const next = { ...b, skills: { ...b.skills, [skill]: !b.skills[skill] } };
-    if (await saveBot(botId, next)) showToast("updated");
-  };
-
   const savePersona = async (botId: string) => {
     const next = { ...bot(botId), persona: editP };
     if (await saveBot(botId, next)) { setEditingPersona(false); showToast("saved"); }
   };
 
-  const closeModal = () => { setModal(null); setEditingPersona(false); };
+  const closeModal = () => { setModal(null); setEditingPersona(false); setExpandedSkill(null); };
 
-  // All unique memories across all bots (deduplicated by id, keep owner info)
-  const allMemories: { id: string; text: string; ts: string; owner: string; bots: string[] }[] = [];
+  // Deduplicated memories across all bots
+  const allMemories: { id: string; text: string; ts: string; owner: string }[] = [];
   const seenMem = new Set<string>();
   for (const id of BOT_IDS) {
     for (const m of bot(id).memories) {
       if (!seenMem.has(m.id)) {
         seenMem.add(m.id);
-        const inBots = BOT_IDS.filter((bid) => bot(bid).memories.some((bm) => bm.id === m.id));
-        allMemories.push({ id: m.id, text: m.text, ts: m.ts, owner: id, bots: [...inBots] });
+        allMemories.push({ id: m.id, text: m.text, ts: m.ts, owner: id });
       }
     }
   }
-
-  // All unique skills across all bots
-  const allSkills = [...new Set(BOT_IDS.flatMap((id) => Object.keys(bot(id).skills)))].sort();
 
   const pos = (angle: number, dist: number) => ({
     x: Math.cos((angle * Math.PI) / 180) * dist,
@@ -122,8 +113,6 @@ export default function AIPage() {
 
   return (
     <div className="fixed inset-0 bg-[#06060f] overflow-hidden select-none" onClick={closeModal}>
-
-      {/* Dot grid */}
       <div className="absolute inset-0 opacity-[0.02]" style={{
         backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
         backgroundSize: "40px 40px",
@@ -135,8 +124,6 @@ export default function AIPage() {
       {/* Canvas */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="relative" style={{ width: 320, height: 320 }}>
-
-          {/* Connection lines */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 320 320">
             <defs>
               {BOT_IDS.map((id, i) => (
@@ -160,9 +147,8 @@ export default function AIPage() {
             modal === "brain" ? "opacity-100" : "opacity-40"
           }`} style={{ background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", animation: "breathe 4s ease-in-out infinite" }} />
 
-          {/* Brain */}
           <button
-            onClick={(e) => { e.stopPropagation(); setModal(modal === "brain" ? null : "brain"); setEditingPersona(false); }}
+            onClick={(e) => { e.stopPropagation(); setModal(modal === "brain" ? null : "brain"); setEditingPersona(false); setExpandedSkill(null); }}
             className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full flex items-center justify-center text-2xl z-20 transition-all duration-300 ${
               modal === "brain" ? "bg-white/10 ring-1 ring-purple-400/20 shadow-lg shadow-purple-500/10 scale-105" : "bg-white/[0.03] hover:bg-white/[0.06] hover:scale-105"
             }`}
@@ -171,13 +157,11 @@ export default function AIPage() {
             modal === "brain" ? "text-white/20" : "text-white/6"
           }`} style={{ top: "calc(50% + 38px)" }}>brain</span>
 
-          {/* Bots */}
           {BOT_IDS.map((id, i) => {
             const p = pos(BOT_ANGLES[i], ORBIT_R);
             const persona = bot(id).persona;
             const isActive = modal === id;
             const color = BOT_COLORS[id];
-
             return (
               <div key={id} className="absolute left-1/2 top-1/2 z-10"
                 style={{ transform: `translate(calc(-50% + ${p.x}px), calc(-50% + ${p.y}px))` }}>
@@ -216,9 +200,9 @@ export default function AIPage() {
                 {modal === "brain" ? (
                   <>
                     <span className="text-sm">🧠</span>
-                    <div className="flex gap-0.5 ml-2">
+                    <div className="flex gap-0.5 ml-1">
                       {(["memory", "skills"] as BrainTab[]).map((t) => (
-                        <button key={t} onClick={() => setBrainTab(t)}
+                        <button key={t} onClick={() => { setBrainTab(t); setExpandedSkill(null); }}
                           className={`px-3 py-1 text-[10px] font-mono rounded-full transition-all ${
                             brainTab === t ? "bg-white/8 text-white/40" : "text-white/12 hover:text-white/25"
                           }`}>{t}</button>
@@ -236,7 +220,6 @@ export default function AIPage() {
                 className="w-6 h-6 rounded-full bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-white/20 text-xs transition-all">✕</button>
             </div>
 
-            {/* Content */}
             <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight: "calc(75vh - 52px)" }}>
 
               {/* Brain → Memory */}
@@ -250,7 +233,7 @@ export default function AIPage() {
                       <div key={m.id} className="py-3 border-b border-white/[0.03] last:border-0">
                         <p className="text-[13px] font-mono text-white/35 leading-relaxed">{m.text}</p>
                         <div className="flex items-center justify-between mt-2.5">
-                          <span className="text-[9px] font-mono text-white/8">{m.ts} · from {bot(m.owner).persona.emoji}</span>
+                          <span className="text-[9px] font-mono text-white/8">{m.ts}</span>
                           <div className="flex gap-1">
                             {BOT_IDS.map((bid) => {
                               const has = bot(bid).memories.some((bm) => bm.id === m.id);
@@ -260,11 +243,9 @@ export default function AIPage() {
                                   onClick={() => { if (!isOwner) toggleMemoryForBot(m.id, m.owner, bid); }}
                                   disabled={saving || isOwner}
                                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ${
-                                    has
-                                      ? "bg-white/8"
-                                      : "bg-white/[0.02] opacity-30 hover:opacity-60"
+                                    has ? "bg-white/8" : "bg-white/[0.02] opacity-30 hover:opacity-60"
                                   } ${isOwner ? "ring-1 ring-white/10" : "hover:bg-white/10"}`}
-                                  title={`${bot(bid).persona.name}: ${has ? "on" : "off"}${isOwner ? " (owner)" : ""}`}
+                                  title={`${bot(bid).persona.name}: ${has ? "on" : "off"}${isOwner ? " (origin)" : ""}`}
                                 >{bot(bid).persona.emoji}</button>
                               );
                             })}
@@ -278,35 +259,59 @@ export default function AIPage() {
 
               {/* Brain → Skills */}
               {modal === "brain" && brainTab === "skills" && (
-                allSkills.length === 0 ? (
+                skillDefs.length === 0 ? (
                   <p className="text-xs font-mono text-white/8 py-8 text-center">no skills</p>
                 ) : (
                   <div>
-                    <p className="text-[10px] font-mono text-white/10 mb-3">{allSkills.length} skills</p>
-                    {allSkills.map((skill) => (
-                      <div key={skill} className="py-3 border-b border-white/[0.03] last:border-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] font-mono text-white/35">{skill}</span>
-                          <div className="flex gap-1">
-                            {BOT_IDS.map((bid) => {
-                              const on = bot(bid).skills[skill] || false;
-                              return (
-                                <button key={bid}
-                                  onClick={() => toggleSkillForBot(skill, bid)}
-                                  disabled={saving}
-                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ${
-                                    on
-                                      ? "bg-white/8"
-                                      : "bg-white/[0.02] opacity-30 hover:opacity-60"
-                                  } hover:bg-white/10`}
-                                  title={`${bot(bid).persona.name}: ${on ? "on" : "off"}`}
-                                >{bot(bid).persona.emoji}</button>
-                              );
-                            })}
+                    <p className="text-[10px] font-mono text-white/10 mb-3">{skillDefs.length} skills</p>
+                    {skillDefs.map((skill) => {
+                      const expanded = expandedSkill === skill.id;
+                      return (
+                        <div key={skill.id} className="border-b border-white/[0.03] last:border-0">
+                          <div className="py-3">
+                            <div className="flex items-center justify-between">
+                              <button onClick={() => setExpandedSkill(expanded ? null : skill.id)}
+                                className="flex-1 text-left min-w-0 mr-3">
+                                <span className="text-[13px] font-mono text-white/35">{skill.name}</span>
+                                <p className="text-[10px] font-mono text-white/12 mt-0.5">{skill.desc}</p>
+                              </button>
+                              <div className="flex gap-1 flex-shrink-0">
+                                {BOT_IDS.map((bid) => {
+                                  const on = bot(bid).skills[skill.id] || false;
+                                  return (
+                                    <button key={bid}
+                                      onClick={() => toggleSkillForBot(skill.id, bid)}
+                                      disabled={saving}
+                                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ${
+                                        on ? "bg-white/8" : "bg-white/[0.02] opacity-30 hover:opacity-60"
+                                      } hover:bg-white/10`}
+                                      title={`${bot(bid).persona.name}: ${on ? "on" : "off"}`}
+                                    >{bot(bid).persona.emoji}</button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            {/* Expanded: setup info */}
+                            {expanded && (
+                              <div className="mt-3 pl-1 space-y-2 animate-fadeIn">
+                                <div>
+                                  <span className="text-[9px] font-mono text-white/15 uppercase tracking-wider">setup</span>
+                                  <p className="text-[11px] font-mono text-white/25 mt-1 leading-relaxed">{skill.setup}</p>
+                                </div>
+                                {skill.manualSteps.length > 0 && (
+                                  <div>
+                                    <span className="text-[9px] font-mono text-amber-400/30 uppercase tracking-wider">⚠ manual steps required</span>
+                                    {skill.manualSteps.map((step, i) => (
+                                      <p key={i} className="text-[11px] font-mono text-amber-400/20 mt-1">• {step}</p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -352,7 +357,6 @@ export default function AIPage() {
         </div>
       )}
 
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-5 py-2.5 bg-white/[0.06] backdrop-blur-md border border-white/[0.06] rounded-full text-[11px] font-mono text-white/40 z-50 animate-modalIn">
           {toast}

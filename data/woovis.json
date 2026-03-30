@@ -94,18 +94,21 @@
     }
   ],
   "skills": {
-    "sudo NOPASSWD": true,
-    "cliclick": true,
+    "gh-cli": true,
+    "browser-automation": true,
     "screencapture": true,
-    "osascript": true,
-    "gh CLI": true,
-    "Vercel CLI": true,
-    "Tailscale SSH": true,
-    "fswatch": true,
-    "카카오톡 (보류)": true,
-    "browser automation": true,
-    "OpenClaw cron": true,
-    "git credential store": true
+    "mouse-keyboard": true,
+    "vercel-cli": true,
+    "tailscale-ssh": true,
+    "cron-scheduler": true,
+    "file-management": true,
+    "sudo-nopasswd": true,
+    "git-credential": true,
+    "shared-brain-sync": true,
+    "kakao-talk": true,
+    "web-search": true,
+    "tts": true,
+    "volume-control": true
   },
   "updatedAt": "2026-03-27T06:11:00Z"
 }

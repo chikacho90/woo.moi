@@ -100,24 +100,22 @@
     }
   ],
   "skills": {
-    "elevated-bridge": true,
-    "OpenRGB": true,
-    "NirCmd": true,
-    "Playwright": true,
-    "gh CLI": true,
+    "gh-cli": true,
+    "browser-automation": true,
     "screencapture": true,
     "mouse-keyboard": true,
-    "pyautogui": true,
-    "volume-control": true,
-    "TTS": true,
+    "tts": true,
+    "web-search": true,
+    "cron-scheduler": true,
+    "file-management": true,
+    "elevated-bridge": true,
+    "rgb-control": true,
     "monitor-control": true,
-    "browser-automation": true,
+    "volume-control": true,
     "shared-brain-sync": true,
     "process-management": true,
-    "file-management": true,
-    "web-search": true,
     "registry-edit": true,
-    "scheduled-tasks": true
+    "git-credential": true
   },
   "updatedAt": "2026-03-27T15:14:04.480320+09:00"
 }

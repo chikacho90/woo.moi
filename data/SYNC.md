@@ -1,94 +1,101 @@
 # Bot Data Sync Spec
 
-이 디렉토리는 woo.moi/ai 페이지의 데이터 소스.
-각 봇은 자기 JSON 파일 하나만 관리하면 됨.
+woo.moi/ai 페이지의 데이터 소스.
 
 ## 파일 구조
 
 ```
 data/
-  woovis.json     ← woovis가 push
-  9oovis.json     ← 9oovis가 push
-  pulmang.json    ← pulmang이 push
-  SYNC.md         ← 이 스펙
+  skills.json       ← 통합 스킬 레지스트리 (마스터 목록)
+  woovis.json       ← woovis가 push
+  9oovis.json       ← 9oovis가 push
+  pulmang.json      ← pulmang이 push
+  SYNC.md           ← 이 스펙
 ```
 
-## JSON 스키마
-
-각 봇의 `{botId}.json`:
+## 봇별 JSON 스키마 (`{botId}.json`)
 
 ```json
 {
   "persona": {
-    "name": "봇 이름 (한글)",
-    "emoji": "대표 이모지",
-    "tone": "말투 설명 (예: 캐주얼 반말)",
-    "callUser": "우님을 뭐라 부르는지",
-    "role": "역할 한 줄",
-    "bio": "소개 한 줄"
+    "name": "봇 이름",
+    "emoji": "이모지",
+    "tone": "말투",
+    "callUser": "우님 호칭",
+    "role": "역할",
+    "bio": "소개"
   },
   "memories": [
-    {
-      "id": "고유ID (아무 문자열)",
-      "text": "기억 내용",
-      "shared": false,
-      "ts": "YYYY-MM-DD"
-    }
+    { "id": "고유ID", "text": "기억 내용", "shared": true, "ts": "YYYY-MM-DD" }
   ],
   "skills": {
-    "스킬명": true
+    "skill-id": true,
+    "another-skill": false
   },
-  "updatedAt": "ISO 8601 타임스탬프"
+  "updatedAt": "ISO 8601"
 }
 ```
 
-## 봇이 해야 할 것
+### skills 필드 규칙
 
-### 1. 자기 데이터 push (매일 또는 변경 시)
+- **키는 반드시 `skills.json`의 skill ID 사용** (예: `"gh-cli"`, `"browser-automation"`)
+- 임의의 스킬명 사용 금지 — 레지스트리에 없으면 무시됨
+- `true` = 이 봇에서 해당 스킬 사용 가능/활성
+- `false` = 비활성 (기능 구현돼있어도 사용 금지)
+- 웹 UI에서 우님이 토글 변경 가능
+
+### 스킬 활성화 흐름
+
+1. 우님이 웹에서 봇A의 스킬X를 ON 전환
+2. 봇A가 다음 sync 시 GET → skills에 `"skill-x": true` 확인
+3. `skills.json`에서 해당 스킬의 `setup` + `manualSteps` 참조
+4. `manualSteps`가 비어있으면: 자동 셋업 진행
+5. `manualSteps`가 있으면: 자동 셋업 진행 + 수동 필요 부분만 우님에게 요청
+6. 셋업 완료 후 `updatedAt` 갱신하고 push
+
+### 스킬 비활성화 흐름
+
+1. 우님이 웹에서 봇A의 스킬X를 OFF 전환
+2. 봇A가 다음 sync 시 GET → skills에 `"skill-x": false` 확인
+3. 해당 기능 사용 중단 (삭제할 필요 없음, 비활성만)
+
+## 통합 스킬 레지스트리 (`skills.json`)
+
+```json
+{
+  "skills": [
+    {
+      "id": "skill-id",
+      "name": "표시명",
+      "desc": "설명",
+      "setup": "셋업 방법",
+      "manualSteps": ["수동 필요 단계 (없으면 빈 배열)"]
+    }
+  ]
+}
+```
+
+새로운 스킬 추가 시: skills.json에 먼저 등록 → 봇 JSON에서 참조.
+
+## Push 방법
 
 GitHub API로 `data/{botId}.json` 업데이트:
 
 ```bash
-# 1. GET 현재 파일 (sha 필요)
+# GET (sha)
 curl -H "Authorization: token {PAT}" \
   https://api.github.com/repos/lookgitme/woo.moi/contents/data/{botId}.json
 
-# 2. PUT 업데이트
+# PUT
 curl -X PUT -H "Authorization: token {PAT}" \
   https://api.github.com/repos/lookgitme/woo.moi/contents/data/{botId}.json \
   -d '{"message":"sync: {botId}","content":"{base64}","sha":"{sha}"}'
 ```
 
-### 2. 언제 push 해야 하는지
+## 핵심 규칙
 
-- 새로운 기억/사실/결정 발생 시 → memories에 추가
-- 새로운 스킬/권한 획득 시 → skills에 추가
-- 페르소나 변경 시 → persona 업데이트
-- 최소 하루 1번 (cron sync)
-
-### 3. 기억(memory) 규칙
-
-- `shared: true` → woo.moi/ai 공유 브레인에 노출
-- `shared: false` → 해당 봇 페이지에서만 보임
-- 웹 UI에서 우님이 shared 토글 변경 가능
-- 웹 UI에서 우님이 개별 삭제 가능
-- 봇은 push할 때 기존 memories를 먼저 GET해서 우님의 변경(삭제/shared 변경)을 보존해야 함
-
-### 4. 스킬(skills) 규칙
-
-- key: 스킬명, value: true(활성)/false(비활성)
-- 새 스킬 획득 시 `"스킬명": true` 추가
-- 웹 UI에서 우님이 토글로 켜고 끌 수 있음
-- 봇은 push할 때 기존 skills를 GET해서 우님의 변경을 보존해야 함
-
-### 5. 페르소나 규칙
-
-- 봇 고유 설정, 공유 안 됨
-- IDENTITY.md나 SOUL.md에서 설정한 값과 동기화
-- 웹 UI에서 우님이 수정 가능 → 봇은 pull해서 반영
-
-## 충돌 방지
-
-각 봇은 자기 파일만 수정. 다른 봇 파일 건드리지 않음.
-웹 UI도 개별 봇 파일을 직접 수정.
-→ 머지 충돌 없음.
+1. 각 봇은 **자기 파일만** 수정
+2. push 전에 **반드시 GET** → 우님의 웹 변경사항 보존
+3. skills 키는 **skills.json의 ID만** 사용
+4. 스킬 ON 확인 시 → setup 참고해서 자동 셋업, manualSteps만 우님에게 요청
+5. 스킬 OFF 확인 시 → 해당 기능 사용 중단
