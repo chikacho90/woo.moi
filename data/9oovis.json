@@ -47,7 +47,8 @@
     "cron-scheduler": true,
     "sudo-nopasswd": true,
     "elevated-bridge": false,
-    "volume-control": true
+    "volume-control": true,
+    "git-credential": true
   },
   "updatedAt": "2026-03-30T10:27:00+09:00"
 }
