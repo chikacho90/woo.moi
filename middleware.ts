@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME, makeLabsToken } from "@/lib/auth";
 
-const PROTECTED = ["/do", "/think", "/ootd", "/woovis", "/woorld"];
+const PROTECTED = ["/woorld"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -24,5 +24,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/do/:path*", "/think/:path*", "/ootd/:path*", "/woovis/:path*", "/woorld/:path*"],
+  matcher: ["/woorld/:path*"],
 };
