@@ -1,206 +1,152 @@
 "use client";
 
-import { useReducer, useState, useEffect, useCallback, useRef } from "react";
-import { plannerReducer, initialState } from "./reducer";
-import type { PlannerAction } from "./reducer";
-import type { PlannerState, SlotType } from "./types";
-import { isCompatible, makeSlotKey, parseSlotKey } from "./types";
-import PlannerGrid from "./components/PlannerGrid";
-import CardPool from "./components/CardPool";
-import AddDayModal from "./components/AddDayModal";
-import AddCardModal from "./components/AddCardModal";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getTrips, deleteTrip, migrateOldPlanner, type Trip } from "./store/trips";
 
-const STORAGE_KEY = "woorld-planner-state";
+const STYLE_LABELS: Record<string, string> = {
+  food: "🍽 맛집",
+  activity: "🏄 액티비티",
+  relax: "🧘 힐링",
+  sightseeing: "📸 관광",
+  shopping: "🛍 쇼핑",
+  nature: "🌿 자연",
+  culture: "🎭 문화체험",
+};
 
-function loadState(): PlannerState | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
+const COMPANION_LABELS: Record<string, string> = {
+  solo: "혼자",
+  couple: "커플",
+  friends: "친구",
+  family: "가족",
+};
+
+function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (id: string) => void }) {
+  const router = useRouter();
+  const dateLabel = trip.startDate
+    ? `${trip.startDate}${trip.endDate ? ` ~ ${trip.endDate}` : ""}`
+    : null;
+  const nightsLabel = trip.nights ? `${trip.nights}박` : null;
+
+  return (
+    <button
+      onClick={() => router.push(`/woorld/${trip.id}`)}
+      className="w-full text-left p-5 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all group relative"
+      style={{ background: "#fff" }}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm("이 여행을 삭제할까요?")) onDelete(trip.id);
+        }}
+        className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all text-xs"
+      >
+        ✕
+      </button>
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">{trip.destination ? "✈️" : "🗺"}</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900 text-base truncate">
+            {trip.destination || "어딘가로..."}
+          </h3>
+          <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+            {dateLabel && <span>{dateLabel}</span>}
+            {nightsLabel && <span>{nightsLabel}</span>}
+            {!dateLabel && !nightsLabel && <span>날짜 미정</span>}
+            <span>·</span>
+            <span>{COMPANION_LABELS[trip.companions] || trip.companions}</span>
+          </div>
+          {trip.styles.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {trip.styles.map(s => (
+                <span key={s} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-50 text-gray-500">
+                  {STYLE_LABELS[s] || s}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3 mt-2 text-[10px] text-gray-300">
+            {trip.days.length > 0 && <span>📋 {trip.days.length}일</span>}
+            {trip.cards.length > 0 && <span>🃏 {trip.cards.length}카드</span>}
+            {trip.places.length > 0 && <span>📍 {trip.places.length}장소</span>}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
 }
 
-export default function WoorldPage() {
-  const [state, dispatch] = useReducer(plannerReducer, initialState);
+export default function WoorldLanding() {
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [showAddDay, setShowAddDay] = useState(false);
-  const [showAddCard, setShowAddCard] = useState(false);
-  const [editDayId, setEditDayId] = useState<string | null>(null);
-  const [dragCardId, setDragCardId] = useState<string | null>(null);
-  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const router = useRouter();
 
-  // Load from localStorage
   useEffect(() => {
-    const saved = loadState();
-    if (saved) dispatch({ type: "LOAD", payload: saved });
+    // Migrate old planner data if exists
+    migrateOldPlanner();
+    setTrips(getTrips());
     setLoaded(true);
   }, []);
 
-  // Auto-save with debounce
-  useEffect(() => {
-    if (!loaded) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      const { ui, ...rest } = state;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...rest, ui: initialState.ui }));
-    }, 500);
-    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [state, loaded]);
-
-  // Drag end cleanup
-  useEffect(() => {
-    const handler = () => {
-      setDragCardId(null);
-      setDragOverSlot(null);
-      if (state.ui.mode === "dragging") {
-        dispatch({ type: "SET_UI_MODE", payload: { mode: "idle" } });
-      }
-    };
-    window.addEventListener("dragend", handler);
-    return () => window.removeEventListener("dragend", handler);
-  }, [state.ui.mode]);
-
-  // Card tap in pool (card-first selection)
-  const handlePoolCardTap = useCallback((cardId: string) => {
-    if (state.ui.mode === "slot-selecting" && state.ui.activeSlotKey) {
-      // Slot was selected first, now place card
-      const { dayId, slot } = parseSlotKey(state.ui.activeSlotKey);
-      const card = state.cards.find(c => c.id === cardId);
-      const day = state.days.find(d => d.id === dayId);
-      if (card && day && isCompatible(card, day, slot)) {
-        dispatch({ type: "PLACE_CARD", payload: { cardId, slotKey: state.ui.activeSlotKey } });
-      } else {
-        dispatch({ type: "SET_UI_MODE", payload: { mode: "idle" } });
-      }
-    } else if (state.ui.mode === "card-selecting" && state.ui.activeCardId === cardId) {
-      // Same card tapped again → cancel
-      dispatch({ type: "SET_UI_MODE", payload: { mode: "idle" } });
-    } else {
-      // Card-first: select card, wait for slot
-      dispatch({ type: "SET_UI_MODE", payload: { mode: "card-selecting", activeCardId: cardId } });
-    }
-  }, [state]);
-
-  const handlePoolDragStart = useCallback((cardId: string, e: React.DragEvent) => {
-    e.dataTransfer.setData("text/plain", cardId);
-    e.dataTransfer.effectAllowed = "move";
-    setDragCardId(cardId);
-    dispatch({ type: "SET_UI_MODE", payload: { mode: "dragging", activeCardId: cardId } });
-  }, []);
-
-  const handleReset = () => {
-    if (confirm("전체 일정을 초기화할까요?")) {
-      dispatch({ type: "RESET" });
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  };
-
-  const cancelSelection = () => {
-    dispatch({ type: "SET_UI_MODE", payload: { mode: "idle" } });
+  const handleDelete = (id: string) => {
+    deleteTrip(id);
+    setTrips(getTrips());
   };
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#fafaf8" }}>
         <p className="text-sm text-gray-300 animate-pulse">loading...</p>
       </div>
     );
   }
 
-  const isSelecting = state.ui.mode === "card-selecting" || state.ui.mode === "slot-selecting";
-
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen" style={{ background: "#fafaf8", color: "#1a1a1a" }}>
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" className="text-xs text-gray-300 hover:text-gray-500 transition-colors">&larr;</a>
-            <h1 className="text-lg font-bold text-gray-900 tracking-tight">woorld</h1>
-            <span className="text-xs text-gray-300 font-mono">schedule planner</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddDay(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-            >
-              + 날짜
-            </button>
-            <button
-              onClick={() => setShowAddCard(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-800 transition-colors"
-            >
-              + 카드
-            </button>
-            <button
-              onClick={handleReset}
-              className="px-2 py-1.5 rounded-lg text-xs text-gray-300 hover:text-red-400 transition-colors"
-              title="초기화"
-            >
-              ↺
-            </button>
-          </div>
+      <div className="max-w-lg mx-auto px-5 pt-12 pb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <a href="/" className="text-xs text-gray-300 hover:text-gray-500 transition-colors">&larr;</a>
+          <h1 className="text-2xl font-bold tracking-tight">woorld</h1>
         </div>
+        <p className="text-sm text-gray-400">어디로 떠날까?</p>
       </div>
 
-      {/* Selection banner */}
-      {isSelecting && (
-        <div className="sticky top-[53px] z-20 bg-blue-50 border-b border-blue-200 px-4 py-2.5 flex items-center justify-between">
-          <p className="text-xs font-medium text-blue-700">
-            {state.ui.mode === "card-selecting"
-              ? "호환되는 슬롯을 탭하세요"
-              : "호환되는 카드를 탭하세요"}
-          </p>
+      {/* Content */}
+      <div className="max-w-lg mx-auto px-5 pb-32">
+        {trips.length === 0 ? (
+          /* Empty state */
+          <div className="text-center py-20">
+            <span className="text-5xl block mb-4">🌍</span>
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">첫 여행을 계획해볼까요?</h2>
+            <p className="text-sm text-gray-400 mb-8">목적지, 일정, 예산까지<br/>한 곳에서 관리해보세요</p>
+            <button
+              onClick={() => router.push("/woorld/new")}
+              className="px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+            >
+              + 새 여행 만들기
+            </button>
+          </div>
+        ) : (
+          /* Trip list */
+          <div className="space-y-3">
+            {trips.map(t => (
+              <TripCard key={t.id} trip={t} onDelete={handleDelete} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* FAB */}
+      {trips.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-40">
           <button
-            onClick={cancelSelection}
-            className="px-3 py-1 rounded-lg text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:bg-blue-100 transition-colors"
+            onClick={() => router.push("/woorld/new")}
+            className="w-14 h-14 rounded-full bg-gray-900 text-white text-2xl flex items-center justify-center shadow-lg hover:bg-gray-800 hover:scale-105 transition-all"
           >
-            취소
+            +
           </button>
         </div>
-      )}
-
-      {/* Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <PlannerGrid
-          state={state}
-          dispatch={dispatch}
-          dragCardId={dragCardId}
-          dragOverSlot={dragOverSlot}
-          setDragCardId={setDragCardId}
-          setDragOverSlot={setDragOverSlot}
-          onEditDay={setEditDayId}
-        />
-      </div>
-
-      {/* Card Pool */}
-      <CardPool
-        cards={state.cards}
-        placements={state.placements}
-        categoryFilter={state.ui.categoryFilter}
-        activeCardId={state.ui.activeCardId}
-        mode={state.ui.mode}
-        onCategoryChange={filter => dispatch({ type: "SET_CATEGORY_FILTER", payload: { filter } })}
-        onCardTap={handlePoolCardTap}
-        onCardDragStart={handlePoolDragStart}
-      />
-
-      {/* Modals */}
-      {showAddDay && (
-        <AddDayModal
-          dayCount={state.days.length}
-          onAdd={day => dispatch({ type: "ADD_DAY", payload: day })}
-          onClose={() => setShowAddDay(false)}
-        />
-      )}
-      {showAddCard && (
-        <AddCardModal
-          days={state.days}
-          onAdd={card => dispatch({ type: "ADD_CARD", payload: card })}
-          onClose={() => setShowAddCard(false)}
-        />
       )}
     </div>
   );
