@@ -30,12 +30,12 @@ export default function AddDayModal({ dayCount, onAdd, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label="날짜 추가">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
       <form
         onClick={e => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+        className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-modalIn"
       >
         <h3 className="text-lg font-bold text-gray-900">날짜 추가</h3>
 

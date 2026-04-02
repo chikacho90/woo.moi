@@ -21,7 +21,7 @@ interface Props {
   activeSlotKey: string | null;
   mode: string;
   dragOverSlot: string | null;
-  onDragOver: (e: React.DragEvent) => void;
+  onDragOver: (e?: React.DragEvent) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
   onSlotTap: () => void;

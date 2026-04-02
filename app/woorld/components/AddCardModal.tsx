@@ -65,12 +65,12 @@ export default function AddCardModal({ days, onAdd, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label="카드 추가">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
       <form
         onClick={e => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-modalIn"
       >
         <h3 className="text-lg font-bold text-gray-900">카드 추가</h3>
 

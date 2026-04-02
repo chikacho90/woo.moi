@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import type { PlannerState } from "../types";
 import { SLOT_TYPES, makeSlotKey, isCompatible } from "../types";
 import SlotCell from "./SlotCell";
@@ -19,6 +20,7 @@ export default function PlannerGrid({
   setDragCardId, setDragOverSlot, onEditDay,
 }: Props) {
   const { days, cards, placements, ui } = state;
+  const [deleteDayId, setDeleteDayId] = useState<string | null>(null);
 
   const handleCardDragStart = (cardId: string, e: React.DragEvent) => {
     const p = placements.find(p => p.cardId === cardId);
@@ -75,8 +77,9 @@ export default function PlannerGrid({
                       <p className="text-[10px] mt-0.5" style={{ color: `${day.color}99` }}>{day.area}</p>
                     )}
                     <button
-                      onClick={e => { e.stopPropagation(); dispatch({ type: "REMOVE_DAY", payload: { id: day.id } }); }}
+                      onClick={e => { e.stopPropagation(); setDeleteDayId(day.id); }}
                       className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white shadow border border-gray-200 text-[10px] text-gray-400 hover:text-red-500 hidden group-hover:flex items-center justify-center"
+                      aria-label={`${day.label} 삭제`}
                     >
                       ✕
                     </button>
@@ -131,6 +134,21 @@ export default function PlannerGrid({
             ))}
           </tbody>
         </table>
+      )}
+
+      {deleteDayId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setDeleteDayId(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
+          <div onClick={e => e.stopPropagation()} className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 animate-modalIn">
+            <p className="text-sm text-gray-700 text-center mb-5 leading-relaxed">이 날짜를 삭제할까요?<br/>배치된 카드도 풀에 돌아갑니다.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteDayId(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">취소</button>
+              <button onClick={() => { dispatch({ type: "REMOVE_DAY", payload: { id: deleteDayId } }); setDeleteDayId(null); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">삭제</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
