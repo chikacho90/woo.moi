@@ -1,56 +1,8 @@
 /* ─── Trip Store — localStorage CRUD ─── */
 
-import type { Card, TripDay, Placement } from "../types";
-import { genId } from "../types";
-
-export type CompanionType = "solo" | "couple" | "friends" | "family";
-export type TravelStyle = "food" | "activity" | "relax" | "sightseeing" | "shopping" | "nature" | "culture";
-
-export interface Place {
-  id: string;
-  name: string;
-  category: string;
-  note?: string;
-  url?: string;
-  addedAt: number;
-}
-
-export interface Memo {
-  id: string;
-  content: string;
-  updatedAt: number;
-}
-
-export interface BudgetItem {
-  id: string;
-  label: string;
-  amount: number;
-  currency: string;
-  category: string;
-  date?: string;
-  note?: string;
-}
-
-export interface Trip {
-  id: string;
-  createdAt: number;
-  // Onboarding (all optional)
-  destination?: string;
-  startDate?: string | null;
-  endDate?: string | null;
-  nights?: number | null;
-  companions: CompanionType;
-  budget?: { min: number; max: number } | null;
-  styles: TravelStyle[];
-  // Planner
-  days: TripDay[];
-  cards: Card[];
-  placements: Placement[];
-  // Tabs
-  places: Place[];
-  memos: Memo[];
-  budgetItems: BudgetItem[];
-}
+import type { Trip, Card, TripDay } from "../types";
+import { genId, DAY_COLORS, calcNights, addDays } from "../types";
+import { findDestination } from "../data/destinations";
 
 const STORAGE_KEY = "woorld-trips";
 
@@ -89,6 +41,29 @@ export function createTrip(partial: Partial<Trip> = {}): Trip {
     budgetItems: [],
     ...partial,
   };
+
+  // Auto-generate days from date range
+  if (trip.startDate && trip.endDate && trip.days.length === 0) {
+    const nights = calcNights(trip.startDate, trip.endDate);
+    const totalDays = nights + 1;
+    for (let i = 0; i < totalDays; i++) {
+      trip.days.push({
+        id: genId(),
+        index: i,
+        date: addDays(trip.startDate, i),
+        label: `Day ${i + 1}`,
+        area: "any",
+        color: DAY_COLORS[i % DAY_COLORS.length],
+      });
+    }
+    trip.nights = nights;
+  }
+
+  // Auto-generate cards from destination DB
+  if (trip.destinationId && trip.cards.length === 0) {
+    trip.cards = generateCardsFromDestination(trip.destinationId, trip.styles);
+  }
+
   const all = readAll();
   all.push(trip);
   writeAll(all);
@@ -132,4 +107,85 @@ export function migrateOldPlanner(): Trip | null {
     }
   } catch {}
   return null;
+}
+
+// Migrate old budget format { min, max } → number
+export function migrateOldBudgetFormat(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const all = readAll();
+    let changed = false;
+    for (const trip of all) {
+      if (trip.budget && typeof trip.budget === "object" && "min" in (trip.budget as object)) {
+        const old = trip.budget as unknown as { min: number; max: number };
+        (trip as Trip).budget = old.max || old.min || null;
+        changed = true;
+      }
+    }
+    if (changed) writeAll(all);
+  } catch {}
+}
+
+function generateCardsFromDestination(destinationId: string, styles: string[]): Card[] {
+  const dest = findDestination(destinationId);
+  if (!dest) return [];
+
+  const cards: Card[] = [];
+  const spots = dest.spots;
+
+  // Filter by travel styles if provided, otherwise take all
+  let filtered = styles.length > 0
+    ? spots.filter(s => styles.includes(s.style))
+    : spots;
+
+  // If too few after filtering, add more
+  if (filtered.length < 5) {
+    const remaining = spots.filter(s => !filtered.includes(s));
+    filtered = [...filtered, ...remaining.slice(0, 5 - filtered.length)];
+  }
+
+  // Take up to 8 spots
+  for (const spot of filtered.slice(0, 8)) {
+    cards.push({
+      id: genId(),
+      emoji: spot.emoji,
+      name: spot.name,
+      description: spot.description,
+      category: spot.category,
+      tags: [],
+      compatibleSlots: spot.slots,
+      compatibleAreas: ["any"],
+      estimatedMinutes: spot.estimatedMinutes,
+    });
+  }
+
+  // Add transport card for international trips
+  if (dest.country !== "한국") {
+    cards.unshift({
+      id: genId(),
+      emoji: "✈️",
+      name: `${dest.name} 도착`,
+      description: "공항 → 숙소 이동",
+      category: "transport",
+      tags: [],
+      compatibleSlots: ["오전", "오후"],
+      compatibleAreas: ["any"],
+      estimatedMinutes: 60,
+    });
+  }
+
+  // Add accommodation card
+  cards.push({
+    id: genId(),
+    emoji: "🏨",
+    name: "숙소 체크인",
+    description: "숙소 도착 및 짐 정리",
+    category: "accommodation",
+    tags: [],
+    compatibleSlots: ["오후", "저녁"],
+    compatibleAreas: ["any"],
+    estimatedMinutes: 30,
+  });
+
+  return cards;
 }

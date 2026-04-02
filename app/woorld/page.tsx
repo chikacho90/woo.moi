@@ -1,53 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { getTrips, deleteTrip, migrateOldPlanner, type Trip } from "./store/trips";
-
-const STYLE_LABELS: Record<string, string> = {
-  food: "🍽 맛집",
-  activity: "🏄 액티비티",
-  relax: "🧘 힐링",
-  sightseeing: "📸 관광",
-  shopping: "🛍 쇼핑",
-  nature: "🌿 자연",
-  culture: "🎭 문화체험",
-};
-
-const COMPANION_LABELS: Record<string, string> = {
-  solo: "혼자",
-  couple: "커플",
-  friends: "친구",
-  family: "가족",
-};
+import { getTrips, deleteTrip, migrateOldPlanner, migrateOldBudgetFormat } from "./store/trips";
+import type { Trip } from "./types";
+import { STYLE_LABELS, COMPANION_LABELS } from "./types";
+import { findDestination } from "./data/destinations";
 
 function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const startX = useRef(0);
+  const swiping = useRef(false);
+
+  const dest = trip.destinationId ? findDestination(trip.destinationId) : null;
+  const emoji = dest?.emoji || (trip.destination ? "✈️" : "🗺");
+
   const dateLabel = trip.startDate
     ? `${trip.startDate}${trip.endDate ? ` ~ ${trip.endDate}` : ""}`
     : null;
-  const nightsLabel = trip.nights ? `${trip.nights}박` : null;
+  const nightsLabel = trip.nights ? `${trip.nights}박 ${trip.nights + 1}일` : null;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    swiping.current = true;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swiping.current) return;
+    const dx = e.touches[0].clientX - startX.current;
+    setSwipeX(Math.min(0, dx));
+  };
+  const handleTouchEnd = () => {
+    swiping.current = false;
+    if (swipeX < -80) {
+      setShowConfirm(true);
+    }
+    setSwipeX(0);
+  };
 
   return (
     <>
       <button
         onClick={() => router.push(`/woorld/${trip.id}`)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="w-full text-left p-5 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all group relative bg-white active:scale-[0.98]"
+        style={{ transform: swipeX ? `translateX(${swipeX}px)` : undefined }}
         aria-label={`${trip.destination || "미정"} 여행 열기`}
       >
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowConfirm(true);
-          }}
+          onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
           className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all text-xs"
           aria-label={`${trip.destination || "미정"} 여행 삭제`}
         >
           ✕
         </button>
         <div className="flex items-start gap-3">
-          <span className="text-2xl">{trip.destination ? "✈️" : "🗺"}</span>
+          <span className="text-2xl">{emoji}</span>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-base truncate">
               {trip.destination || "어딘가로..."}
@@ -76,10 +87,11 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (id: string) => vo
           </div>
         </div>
       </button>
+
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
-          <div onClick={e => e.stopPropagation()} className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 animate-modalIn">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ animation: "fadeIn 150ms" }} />
+          <div onClick={e => e.stopPropagation()} className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6" style={{ animation: "modalIn 200ms" }}>
             <p className="text-sm text-gray-700 text-center mb-5 leading-relaxed">이 여행을 삭제할까요?</p>
             <div className="flex gap-2">
               <button onClick={() => setShowConfirm(false)}
@@ -101,6 +113,7 @@ export default function WoorldLanding() {
 
   useEffect(() => {
     migrateOldPlanner();
+    migrateOldBudgetFormat();
     setTrips(getTrips());
     setLoaded(true);
   }, []);
@@ -157,13 +170,13 @@ export default function WoorldLanding() {
 
       {/* FAB */}
       {trips.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
           <button
             onClick={() => router.push("/woorld/new")}
-            className="w-14 h-14 rounded-full bg-gray-900 text-white text-2xl flex items-center justify-center shadow-lg hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all"
+            className="px-6 py-3 rounded-full bg-gray-900 text-white text-sm font-semibold flex items-center gap-2 shadow-lg hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all"
             aria-label="새 여행 만들기"
           >
-            +
+            + 새 여행
           </button>
         </div>
       )}

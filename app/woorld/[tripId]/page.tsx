@@ -2,82 +2,64 @@
 
 import { useEffect, useState, useReducer, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { getTrip, updateTrip, deleteTrip, type Trip, type Place, type Memo, type BudgetItem } from "../store/trips";
-import { plannerReducer, initialState, type PlannerAction } from "../reducer";
-import type { PlannerState, Card, CardCategory, SlotType } from "../types";
-import { isCompatible, parseSlotKey, genId, SLOT_TYPES, CATEGORY_COLORS } from "../types";
+import { getTrip, updateTrip, deleteTrip } from "../store/trips";
+import { plannerReducer, initialState } from "../reducer";
+import type { Trip, Card, CardCategory, SlotType, Place, Memo, BudgetItem, TravelStyle } from "../types";
+import {
+  genId, SLOT_TYPES, CATEGORY_COLORS, isCompatible, parseSlotKey, makeSlotKey,
+  STYLE_LABELS, COMPANION_LABELS, PLACE_CATEGORIES, BUDGET_CATEGORIES, calcNights, addDays, DAY_COLORS,
+} from "../types";
+import { findDestination } from "../data/destinations";
 import PlannerGrid from "../components/PlannerGrid";
 import CardPool from "../components/CardPool";
-import AddDayModal from "../components/AddDayModal";
 import AddCardModal from "../components/AddCardModal";
-
-type TabType = "schedule" | "places" | "memo" | "budget";
-
-const TABS: { key: TabType; emoji: string; label: string }[] = [
-  { key: "schedule", emoji: "📋", label: "일정표" },
-  { key: "places", emoji: "🗺", label: "장소" },
-  { key: "memo", emoji: "📝", label: "메모" },
-  { key: "budget", emoji: "💰", label: "예산" },
-];
-
-const STYLE_LABELS: Record<string, string> = {
-  food: "🍽 맛집", activity: "🏄 액티비티", relax: "🧘 힐링",
-  sightseeing: "📸 관광", shopping: "🛍 쇼핑", nature: "🌿 자연", culture: "🎭 문화체험",
-};
-
-const COMPANION_LABELS: Record<string, string> = {
-  solo: "🧳 혼자", couple: "💑 커플", friends: "👯 친구", family: "👨‍👩‍👧 가족",
-};
-
-const PLACE_CATEGORIES = ["관광", "맛집", "카페", "숙소", "쇼핑", "기타"];
-const BUDGET_CATEGORIES = ["숙소", "교통", "식비", "관광", "쇼핑", "기타"];
+import Calendar from "../components/Calendar";
 
 /* ─── Confirm Dialog ─── */
 function ConfirmDialog({ message, onConfirm, onCancel }: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  message: string; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
-      <div
-        onClick={e => e.stopPropagation()}
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 animate-modalIn"
-      >
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ animation: "fadeIn 150ms" }} />
+      <div onClick={e => e.stopPropagation()} className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6" style={{ animation: "modalIn 200ms" }}>
         <p className="text-sm text-gray-700 text-center mb-5 leading-relaxed">{message}</p>
         <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            취소
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-          >
-            삭제
-          </button>
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">취소</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">삭제</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Trip Summary Header ─── */
+/* ─── Section Header ─── */
+function SectionHeader({ emoji, title, action }: { emoji: string; title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+        <span>{emoji}</span> {title}
+      </h3>
+      {action}
+    </div>
+  );
+}
+
+/* ─── Trip Header ─── */
 function TripHeader({ trip, onUpdate }: { trip: Trip; onUpdate: (p: Partial<Trip>) => void }) {
   const [editing, setEditing] = useState(false);
   const [dest, setDest] = useState(trip.destination || "");
+  const destData = trip.destinationId ? findDestination(trip.destinationId) : null;
+  const emoji = destData?.emoji || (trip.destination ? "✈️" : "🗺");
 
-  useEffect(() => {
-    setDest(trip.destination || "");
-  }, [trip.destination]);
+  useEffect(() => { setDest(trip.destination || ""); }, [trip.destination]);
+
+  const nightsLabel = trip.nights ? `${trip.nights}박 ${trip.nights + 1}일` : null;
 
   return (
-    <div className="px-5 pt-6 pb-4">
+    <div className="px-5 pt-4 pb-3">
       <div className="flex items-start gap-3">
-        <span className="text-3xl mt-0.5">{trip.destination ? "✈️" : "🗺"}</span>
+        <span className="text-3xl mt-0.5">{emoji}</span>
         <div className="flex-1 min-w-0">
           {editing ? (
             <input
@@ -99,11 +81,11 @@ function TripHeader({ trip, onUpdate }: { trip: Trip; onUpdate: (p: Partial<Trip
               {trip.destination || "어딘가로..."}
             </h2>
           )}
-          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-400">
+          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-400">
             {trip.startDate && <span>{trip.startDate}{trip.endDate ? ` ~ ${trip.endDate}` : ""}</span>}
-            {trip.nights && <span>{trip.nights}박</span>}
+            {nightsLabel && <span>{nightsLabel}</span>}
             <span>{COMPANION_LABELS[trip.companions]}</span>
-            {trip.budget && <span>💰 {trip.budget.min}~{trip.budget.max}만</span>}
+            {trip.budget && <span>💰 {trip.budget}만원</span>}
           </div>
           {trip.styles.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
@@ -120,11 +102,9 @@ function TripHeader({ trip, onUpdate }: { trip: Trip; onUpdate: (p: Partial<Trip
   );
 }
 
-/* ─── Places Tab ─── */
-function PlacesTab({ places, onAdd, onDelete }: {
-  places: Place[];
-  onAdd: (p: Place) => void;
-  onDelete: (id: string) => void;
+/* ─── Places Section ─── */
+function PlacesSection({ places, onAdd, onDelete }: {
+  places: Place[]; onAdd: (p: Place) => void; onDelete: (id: string) => void;
 }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("관광");
@@ -140,78 +120,51 @@ function PlacesTab({ places, onAdd, onDelete }: {
   };
 
   return (
-    <div className="px-5 py-4">
+    <div>
       {places.length === 0 && !showForm && (
-        <div className="text-center py-12">
-          <span className="text-3xl block mb-3">📍</span>
-          <p className="text-sm text-gray-400 mb-4">가고 싶은 곳을 모아보세요</p>
-        </div>
+        <p className="text-sm text-gray-300 text-center py-4">가고 싶은 곳을 추가해보세요</p>
       )}
       {places.map(p => (
-        <div key={p.id} className="flex items-center gap-3 py-3 border-b border-gray-50 group">
+        <div key={p.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 group">
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{p.category}</span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{p.name}</p>
             {p.note && <p className="text-xs text-gray-400 truncate">{p.note}</p>}
           </div>
-          {p.url && (
-            <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-600" aria-label={`${p.name} 링크 열기`}>🔗</a>
-          )}
-          <button
-            onClick={() => setDeleteId(p.id)}
-            className="text-xs text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-            aria-label={`${p.name} 삭제`}
-          >✕</button>
+          {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-600">🔗</a>}
+          <button onClick={() => setDeleteId(p.id)} className="text-xs text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" aria-label="삭제">✕</button>
         </div>
       ))}
       {showForm ? (
-        <div className="mt-4 p-4 rounded-xl bg-white border border-gray-100 space-y-3 animate-modalIn">
-          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="장소 이름"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" autoFocus
-            onKeyDown={e => e.key === "Enter" && handleAdd()} aria-label="장소 이름" />
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="장소 카테고리">
+        <div className="mt-3 p-4 rounded-xl bg-white border border-gray-100 space-y-3" style={{ animation: "modalIn 200ms" }}>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="장소 이름" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" autoFocus onKeyDown={e => e.key === "Enter" && handleAdd()} />
+          <div className="flex flex-wrap gap-1.5">
             {PLACE_CATEGORIES.map(c => (
-              <button key={c} onClick={() => setCategory(c)}
-                className="px-3 py-1 rounded-full text-xs transition-all"
-                style={{ background: category === c ? "#1a1a1a" : "#f5f5f5", color: category === c ? "#fff" : "#666" }}
-                aria-pressed={category === c}>
-                {c}
-              </button>
+              <button key={c} onClick={() => setCategory(c)} className="px-3 py-1 rounded-full text-xs transition-all" style={{ background: category === c ? "#1a1a1a" : "#f5f5f5", color: category === c ? "#fff" : "#666" }}>{c}</button>
             ))}
           </div>
-          <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="메모 (선택)"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" aria-label="장소 메모" />
-          <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (선택)"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" aria-label="장소 URL" />
+          <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="메모 (선택)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" />
+          <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="URL (선택)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" />
           <div className="flex gap-2">
             <button onClick={handleAdd} disabled={!name.trim()} className="px-4 py-2 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 transition-all">추가</button>
             <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-gray-600">취소</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setShowForm(true)}
-          className="mt-4 w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-all">
-          + 장소 추가
-        </button>
+        <button onClick={() => setShowForm(true)} className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-all">+ 장소 추가</button>
       )}
       {deleteId && (
-        <ConfirmDialog
-          message="이 장소를 삭제할까요?"
-          onConfirm={() => { onDelete(deleteId); setDeleteId(null); }}
-          onCancel={() => setDeleteId(null)}
-        />
+        <ConfirmDialog message="이 장소를 삭제할까요?" onConfirm={() => { onDelete(deleteId); setDeleteId(null); }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );
 }
 
-/* ─── Memo Tab ─── */
-function MemoTab({ memos, onUpdate }: {
-  memos: Memo[];
-  onUpdate: (memos: Memo[]) => void;
-}) {
+/* ─── Memo Section ─── */
+function MemoSection({ memos, onUpdate }: { memos: Memo[]; onUpdate: (m: Memo[]) => void }) {
   const memoId = useRef(memos[0]?.id || genId());
   const [content, setContent] = useState(memos[0]?.content || "");
+  const [expanded, setExpanded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = (val: string) => {
@@ -227,25 +180,25 @@ function MemoTab({ memos, onUpdate }: {
   }, []);
 
   return (
-    <div className="px-5 py-4">
+    <div>
       <textarea
         value={content}
         onChange={e => handleChange(e.target.value)}
+        onFocus={() => setExpanded(true)}
+        onBlur={() => !content && setExpanded(false)}
         placeholder="여행 메모를 자유롭게 적어보세요..."
-        className="w-full min-h-[300px] px-4 py-3 rounded-xl border border-gray-200 text-sm leading-relaxed resize-y focus:outline-none focus:border-gray-400 bg-white"
+        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm leading-relaxed resize-none focus:outline-none focus:border-gray-400 bg-white transition-all"
+        style={{ minHeight: expanded ? 150 : 60 }}
         aria-label="여행 메모"
       />
-      <p className="text-[10px] text-gray-300 mt-2 text-right">자동 저장됨</p>
+      <p className="text-[10px] text-gray-300 mt-1 text-right">자동 저장</p>
     </div>
   );
 }
 
-/* ─── Budget Tab ─── */
-function BudgetTab({ items, currency, onAdd, onDelete }: {
-  items: BudgetItem[];
-  currency: string;
-  onAdd: (item: BudgetItem) => void;
-  onDelete: (id: string) => void;
+/* ─── Budget Section ─── */
+function BudgetSection({ items, totalBudget, onAdd, onDelete }: {
+  items: BudgetItem[]; totalBudget?: number | null; onAdd: (i: BudgetItem) => void; onDelete: (id: string) => void;
 }) {
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
@@ -253,7 +206,7 @@ function BudgetTab({ items, currency, onAdd, onDelete }: {
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const total = items.reduce((sum, i) => sum + i.amount, 0);
+  const spent = items.reduce((sum, i) => sum + i.amount, 0);
   const byCategory = items.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] || 0) + i.amount;
     return acc;
@@ -261,63 +214,60 @@ function BudgetTab({ items, currency, onAdd, onDelete }: {
 
   const handleAdd = () => {
     if (!label.trim() || !amount) return;
-    onAdd({ id: genId(), label: label.trim(), amount: parseInt(amount), currency, category, note: "" });
+    onAdd({ id: genId(), label: label.trim(), amount: parseInt(amount), currency: "KRW", category });
     setLabel(""); setAmount(""); setShowForm(false);
   };
 
   return (
-    <div className="px-5 py-4">
-      {/* Total */}
-      <div className="text-center py-4 mb-4">
-        <p className="text-xs text-gray-400 mb-1">총 지출</p>
-        <p className="text-3xl font-bold">{total.toLocaleString()}<span className="text-sm font-normal text-gray-400 ml-1">원</span></p>
+    <div>
+      {/* Summary */}
+      <div className="text-center py-3 mb-3">
+        <p className="text-xs text-gray-400 mb-1">지출</p>
+        <p className="text-2xl font-bold">
+          {spent.toLocaleString()}<span className="text-sm font-normal text-gray-400 ml-1">원</span>
+        </p>
+        {totalBudget && (
+          <div className="mt-2">
+            <div className="w-full max-w-xs mx-auto h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (spent / (totalBudget * 10000)) * 100)}%`,
+                  background: spent > totalBudget * 10000 ? "#ef4444" : "#10b981",
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">예산 {totalBudget}만원 중 {Math.round(spent / 10000)}만원 사용</p>
+          </div>
+        )}
       </div>
 
       {/* Category breakdown */}
       {Object.keys(byCategory).length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4 justify-center">
+        <div className="flex flex-wrap gap-1.5 mb-3 justify-center">
           {Object.entries(byCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
-            <span key={cat} className="px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-              {cat} {amt.toLocaleString()}원
-            </span>
+            <span key={cat} className="px-2.5 py-1 rounded-full text-[11px] bg-gray-100 text-gray-600">{cat} {amt.toLocaleString()}원</span>
           ))}
         </div>
       )}
 
       {/* Items */}
-      {items.length === 0 && !showForm && (
-        <div className="text-center py-8">
-          <span className="text-3xl block mb-3">💳</span>
-          <p className="text-sm text-gray-400">지출 내역을 추가해보세요</p>
-        </div>
-      )}
       {items.map(i => (
-        <div key={i.id} className="flex items-center gap-3 py-3 border-b border-gray-50 group">
+        <div key={i.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 group">
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{i.category}</span>
           <span className="flex-1 text-sm">{i.label}</span>
           <span className="text-sm font-medium">{i.amount.toLocaleString()}원</span>
-          <button onClick={() => setDeleteId(i.id)}
-            className="text-xs text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-            aria-label={`${i.label} 삭제`}>✕</button>
+          <button onClick={() => setDeleteId(i.id)} className="text-xs text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" aria-label="삭제">✕</button>
         </div>
       ))}
 
       {showForm ? (
-        <div className="mt-4 p-4 rounded-xl bg-white border border-gray-100 space-y-3 animate-modalIn">
-          <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="항목명"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" autoFocus
-            onKeyDown={e => e.key === "Enter" && handleAdd()} aria-label="지출 항목명" />
-          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="금액 (원)"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400"
-            onKeyDown={e => e.key === "Enter" && handleAdd()} aria-label="금액" />
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="지출 카테고리">
+        <div className="mt-3 p-4 rounded-xl bg-white border border-gray-100 space-y-3" style={{ animation: "modalIn 200ms" }}>
+          <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="항목명" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" autoFocus onKeyDown={e => e.key === "Enter" && handleAdd()} />
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="금액 (원)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-gray-400" onKeyDown={e => e.key === "Enter" && handleAdd()} />
+          <div className="flex flex-wrap gap-1.5">
             {BUDGET_CATEGORIES.map(c => (
-              <button key={c} onClick={() => setCategory(c)}
-                className="px-3 py-1 rounded-full text-xs transition-all"
-                style={{ background: category === c ? "#1a1a1a" : "#f5f5f5", color: category === c ? "#fff" : "#666" }}
-                aria-pressed={category === c}>
-                {c}
-              </button>
+              <button key={c} onClick={() => setCategory(c)} className="px-3 py-1 rounded-full text-xs transition-all" style={{ background: category === c ? "#1a1a1a" : "#f5f5f5", color: category === c ? "#fff" : "#666" }}>{c}</button>
             ))}
           </div>
           <div className="flex gap-2">
@@ -326,80 +276,45 @@ function BudgetTab({ items, currency, onAdd, onDelete }: {
           </div>
         </div>
       ) : (
-        <button onClick={() => setShowForm(true)}
-          className="mt-4 w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-all">
-          + 지출 추가
-        </button>
+        <button onClick={() => setShowForm(true)} className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-all">+ 지출 추가</button>
       )}
 
       {deleteId && (
-        <ConfirmDialog
-          message="이 지출을 삭제할까요?"
-          onConfirm={() => { onDelete(deleteId); setDeleteId(null); }}
-          onCancel={() => setDeleteId(null)}
-        />
+        <ConfirmDialog message="이 지출을 삭제할까요?" onConfirm={() => { onDelete(deleteId); setDeleteId(null); }} onCancel={() => setDeleteId(null)} />
       )}
     </div>
   );
 }
 
-/* ─── AI Sample Cards Generator (stub) ─── */
-function generateSampleCards(styles: string[]): Omit<Card, "id">[] {
-  const samples: Record<string, Omit<Card, "id">[]> = {
-    food: [
-      { emoji: "🍜", name: "현지 맛집 탐방", description: "로컬 추천 맛집", category: "food" as CardCategory, tags: [], compatibleSlots: ["점심", "저녁"] as SlotType[], compatibleAreas: ["any"] },
-      { emoji: "☕", name: "카페 투어", description: "분위기 좋은 카페", category: "food" as CardCategory, tags: [], compatibleSlots: ["오후"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    activity: [
-      { emoji: "🏊", name: "수상 액티비티", description: "스노클링 / 카약", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    relax: [
-      { emoji: "🧖", name: "스파 & 마사지", description: "피로 회복", category: "chill" as CardCategory, tags: [], compatibleSlots: ["오후", "저녁"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    sightseeing: [
-      { emoji: "🏛", name: "주요 관광지", description: "꼭 가볼 명소", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후"] as SlotType[], compatibleAreas: ["any"] },
-      { emoji: "📸", name: "포토 스팟", description: "인생샷 장소", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    shopping: [
-      { emoji: "🛍", name: "쇼핑", description: "현지 쇼핑 스팟", category: "errand" as CardCategory, tags: [], compatibleSlots: ["오후", "저녁"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    nature: [
-      { emoji: "🌿", name: "자연 탐방", description: "트레킹 / 공원", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후"] as SlotType[], compatibleAreas: ["any"] },
-    ],
-    culture: [
-      { emoji: "🎭", name: "문화 체험", description: "현지 문화 경험", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후", "저녁"] as SlotType[], compatibleAreas: ["any"] },
-    ],
+/* ─── Date Change Inline ─── */
+function DateChangeSection({ trip, onUpdate }: { trip: Trip; onUpdate: (p: Partial<Trip>) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = (start: string, end: string | null) => {
+    onUpdate({
+      startDate: start,
+      endDate: end,
+      nights: end ? calcNights(start, end) : null,
+    });
   };
 
-  const result: Omit<Card, "id">[] = [];
-  const used = new Set<string>();
-
-  // Add cards based on styles
-  for (const style of styles) {
-    const cards = samples[style];
-    if (cards) {
-      for (const card of cards) {
-        if (!used.has(card.name) && result.length < 5) {
-          used.add(card.name);
-          result.push(card);
-        }
-      }
-    }
-  }
-
-  // If no styles or too few cards, add defaults
-  if (result.length === 0) {
-    result.push(
-      { emoji: "🏛", name: "주요 관광지", description: "꼭 가볼 명소", category: "activity" as CardCategory, tags: [], compatibleSlots: ["오전", "오후"] as SlotType[], compatibleAreas: ["any"] },
-      { emoji: "🍜", name: "현지 맛집", description: "로컬 추천 맛집", category: "food" as CardCategory, tags: [], compatibleSlots: ["점심", "저녁"] as SlotType[], compatibleAreas: ["any"] },
-      { emoji: "☕", name: "카페", description: "분위기 좋은 카페", category: "food" as CardCategory, tags: [], compatibleSlots: ["오후"] as SlotType[], compatibleAreas: ["any"] },
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="text-xs text-indigo-500 hover:text-indigo-600 transition-colors">
+        📅 날짜 변경
+      </button>
     );
   }
 
-  return result;
+  return (
+    <div className="mt-3 p-4 bg-white rounded-xl border border-gray-100" style={{ animation: "modalIn 200ms" }}>
+      <Calendar startDate={trip.startDate || null} endDate={trip.endDate || null} onSelect={handleSelect} />
+      <button onClick={() => setOpen(false)} className="mt-3 w-full py-2 rounded-lg text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">닫기</button>
+    </div>
+  );
 }
 
-/* ─── Main Dashboard ─── */
+/* ─── Main ─── */
 export default function TripDashboard() {
   const router = useRouter();
   const params = useParams();
@@ -407,11 +322,9 @@ export default function TripDashboard() {
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>("schedule");
 
-  // Planner state (schedule tab)
+  // Planner state
   const [plannerState, plannerDispatch] = useReducer(plannerReducer, initialState);
-  const [showAddDay, setShowAddDay] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [dragCardId, setDragCardId] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
@@ -421,10 +334,7 @@ export default function TripDashboard() {
   // Load trip
   useEffect(() => {
     const t = getTrip(tripId);
-    if (!t) {
-      router.push("/woorld");
-      return;
-    }
+    if (!t) { router.push("/woorld"); return; }
     setTrip(t);
     plannerDispatch({
       type: "LOAD",
@@ -433,7 +343,7 @@ export default function TripDashboard() {
     setLoaded(true);
   }, [tripId, router]);
 
-  // Auto-save planner to trip
+  // Auto-save planner
   useEffect(() => {
     if (!loaded || !trip) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -451,8 +361,33 @@ export default function TripDashboard() {
   // Handlers
   const handleTripUpdate = useCallback((partial: Partial<Trip>) => {
     const updated = updateTrip(tripId, partial);
-    if (updated) setTrip(updated);
-  }, [tripId]);
+    if (updated) {
+      setTrip(updated);
+      // If dates changed, regenerate days
+      if (partial.startDate !== undefined || partial.endDate !== undefined) {
+        const start = partial.startDate ?? updated.startDate;
+        const end = partial.endDate ?? updated.endDate;
+        if (start && end) {
+          const nights = calcNights(start, end);
+          const totalDays = nights + 1;
+          const newDays = [];
+          for (let i = 0; i < totalDays; i++) {
+            const existingDay = updated.days[i];
+            newDays.push({
+              id: existingDay?.id || genId(),
+              index: i,
+              date: addDays(start, i),
+              label: existingDay?.label || `Day ${i + 1}`,
+              area: existingDay?.area || "any",
+              color: existingDay?.color || DAY_COLORS[i % DAY_COLORS.length],
+            });
+          }
+          plannerDispatch({ type: "LOAD", payload: { ...plannerState, days: newDays, ui: plannerState.ui } });
+          updateTrip(tripId, { days: newDays, nights });
+        }
+      }
+    }
+  }, [tripId, plannerState]);
 
   const handleAddPlace = useCallback((place: Place) => {
     setTrip(prev => {
@@ -471,8 +406,8 @@ export default function TripDashboard() {
   }, [tripId]);
 
   const handleUpdateMemos = useCallback((memos: Memo[]) => {
-    handleTripUpdate({ memos });
-  }, [handleTripUpdate]);
+    updateTrip(tripId, { memos });
+  }, [tripId]);
 
   const handleAddBudget = useCallback((item: BudgetItem) => {
     setTrip(prev => {
@@ -495,12 +430,36 @@ export default function TripDashboard() {
     router.push("/woorld");
   }, [tripId, router]);
 
-  // AI fill stub
+  // AI card generation
   const handleAiFill = useCallback(() => {
     if (!trip) return;
-    const cards = generateSampleCards(trip.styles);
-    for (const card of cards) {
-      plannerDispatch({ type: "ADD_CARD", payload: card });
+    const dest = trip.destinationId ? findDestination(trip.destinationId) : null;
+    if (!dest) return;
+
+    const styles = trip.styles;
+    let spots = styles.length > 0
+      ? dest.spots.filter(s => styles.includes(s.style as TravelStyle))
+      : dest.spots;
+
+    if (spots.length < 5) {
+      const remaining = dest.spots.filter(s => !spots.includes(s));
+      spots = [...spots, ...remaining.slice(0, 5 - spots.length)];
+    }
+
+    for (const spot of spots.slice(0, 8)) {
+      plannerDispatch({
+        type: "ADD_CARD",
+        payload: {
+          emoji: spot.emoji,
+          name: spot.name,
+          description: spot.description,
+          category: spot.category,
+          tags: [],
+          compatibleSlots: spot.slots,
+          compatibleAreas: ["any"],
+          estimatedMinutes: spot.estimatedMinutes,
+        },
+      });
     }
   }, [trip]);
 
@@ -554,21 +513,17 @@ export default function TripDashboard() {
   }
 
   const isSelecting = plannerState.ui.mode === "card-selecting" || plannerState.ui.mode === "slot-selecting";
+  const unplacedCards = plannerState.cards.filter(c => !plannerState.placements.find(p => p.cardId === c.id));
 
   return (
     <div className="min-h-screen" style={{ background: "#fafaf8", color: "#1a1a1a" }}>
       {/* Top nav */}
       <div className="sticky top-0 z-30 bg-[#fafaf8]/95 backdrop-blur-sm border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => router.push("/woorld")} className="text-xs text-gray-400 hover:text-gray-600 transition-colors py-1" aria-label="여행 목록으로 돌아가기">← 목록</button>
+          <button onClick={() => router.push("/woorld")} className="text-xs text-gray-400 hover:text-gray-600 transition-colors py-1" aria-label="여행 목록으로 돌아가기">&larr; 목록</button>
           <div className="flex items-center gap-2">
-            {activeTab === "schedule" && (
-              <>
-                <button onClick={() => setShowAddDay(true)} className="px-3 py-1.5 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">+ 날짜</button>
-                <button onClick={() => setShowAddCard(true)} className="px-3 py-1.5 rounded-lg text-xs bg-gray-900 text-white hover:bg-gray-800 transition-colors">+ 카드</button>
-              </>
-            )}
-            <button onClick={() => setShowDeleteConfirm(true)} className="px-2 py-1.5 text-xs text-gray-300 hover:text-red-400 transition-colors" title="여행 삭제" aria-label="여행 삭제">🗑</button>
+            <button onClick={() => setShowAddCard(true)} className="px-3 py-1.5 rounded-lg text-xs bg-gray-900 text-white hover:bg-gray-800 transition-colors">+ 카드</button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="px-2 py-1.5 text-xs text-gray-300 hover:text-red-400 transition-colors" aria-label="여행 삭제">🗑</button>
           </div>
         </div>
       </div>
@@ -578,31 +533,9 @@ export default function TripDashboard() {
         <TripHeader trip={trip} onUpdate={handleTripUpdate} />
       </div>
 
-      {/* Tabs */}
-      <div className="sticky top-[49px] z-20 bg-[#fafaf8]/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-2xl mx-auto px-4 flex" role="tablist">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className="flex-1 py-3 text-center text-xs font-medium transition-all relative"
-              style={{ color: activeTab === tab.key ? "#1a1a1a" : "#999" }}
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              aria-controls={`tabpanel-${tab.key}`}
-            >
-              {tab.emoji} {tab.label}
-              {activeTab === tab.key && (
-                <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gray-900 rounded-full" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Selection banner (schedule) */}
-      {activeTab === "schedule" && isSelecting && (
-        <div className="sticky top-[97px] z-10 bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between animate-fadeIn">
+      {/* Selection banner */}
+      {isSelecting && (
+        <div className="sticky top-[49px] z-10 bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between" style={{ animation: "fadeIn 150ms" }}>
           <p className="text-xs font-medium text-blue-700">
             {plannerState.ui.mode === "card-selecting" ? "호환되는 슬롯을 탭하세요" : "호환되는 카드를 탭하세요"}
           </p>
@@ -611,67 +544,81 @@ export default function TripDashboard() {
         </div>
       )}
 
-      {/* Tab content */}
-      <div className="max-w-2xl mx-auto pb-32" role="tabpanel" id={`tabpanel-${activeTab}`}>
-        {activeTab === "schedule" && (
-          <>
-            {/* AI fill button */}
-            {plannerState.cards.length === 0 && (
-              <div className="px-4 pt-4">
-                <button
-                  onClick={handleAiFill}
-                  className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-200 text-sm text-indigo-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all"
-                >
-                  ✨ AI가 채워줄까?
-                </button>
-              </div>
-            )}
+      {/* ALL SECTIONS on one page */}
+      <div className="max-w-2xl mx-auto pb-32">
 
-            <div className="px-4 py-4">
-              <PlannerGrid
-                state={plannerState}
-                dispatch={plannerDispatch}
-                dragCardId={dragCardId}
-                dragOverSlot={dragOverSlot}
-                setDragCardId={setDragCardId}
-                setDragOverSlot={setDragOverSlot}
-                onEditDay={() => {}}
-              />
-            </div>
-            <CardPool
-              cards={plannerState.cards}
-              placements={plannerState.placements}
-              categoryFilter={plannerState.ui.categoryFilter}
-              activeCardId={plannerState.ui.activeCardId}
-              mode={plannerState.ui.mode}
-              onCategoryChange={f => plannerDispatch({ type: "SET_CATEGORY_FILTER", payload: { filter: f } })}
-              onCardTap={handlePoolCardTap}
-              onCardDragStart={handlePoolDragStart}
-            />
-          </>
-        )}
+        {/* ─── Section: Schedule ─── */}
+        <div className="px-4 pt-4">
+          <SectionHeader
+            emoji="📋"
+            title="일정"
+            action={
+              <DateChangeSection trip={trip} onUpdate={handleTripUpdate} />
+            }
+          />
 
-        {activeTab === "places" && (
-          <PlacesTab places={trip.places} onAdd={handleAddPlace} onDelete={handleDeletePlace} />
-        )}
+          {/* AI fill button */}
+          {plannerState.cards.length === 0 && trip.destinationId && (
+            <button
+              onClick={handleAiFill}
+              className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-200 text-sm text-indigo-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all mb-4"
+            >
+              ✨ 추천 카드 생성
+            </button>
+          )}
 
-        {activeTab === "memo" && (
-          <MemoTab memos={trip.memos} onUpdate={handleUpdateMemos} />
-        )}
+          <PlannerGrid
+            state={plannerState}
+            dispatch={plannerDispatch}
+            dragCardId={dragCardId}
+            dragOverSlot={dragOverSlot}
+            setDragCardId={setDragCardId}
+            setDragOverSlot={setDragOverSlot}
+            onEditDay={() => {}}
+          />
+        </div>
 
-        {activeTab === "budget" && (
-          <BudgetTab items={trip.budgetItems} currency="KRW" onAdd={handleAddBudget} onDelete={handleDeleteBudget} />
-        )}
+        {/* ─── Section: Recommended Cards ─── */}
+        <div className="px-4 pt-6">
+          <SectionHeader
+            emoji="🃏"
+            title={`추천 카드${unplacedCards.length > 0 ? ` (${unplacedCards.length})` : ""}`}
+            action={
+              <button onClick={() => setShowAddCard(true)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">+ 직접 추가</button>
+            }
+          />
+          <CardPool
+            cards={plannerState.cards}
+            placements={plannerState.placements}
+            categoryFilter={plannerState.ui.categoryFilter}
+            activeCardId={plannerState.ui.activeCardId}
+            mode={plannerState.ui.mode}
+            onCategoryChange={f => plannerDispatch({ type: "SET_CATEGORY_FILTER", payload: { filter: f } })}
+            onCardTap={handlePoolCardTap}
+            onCardDragStart={handlePoolDragStart}
+          />
+        </div>
+
+        {/* ─── Section: Places ─── */}
+        <div className="px-4 pt-6">
+          <SectionHeader emoji="📍" title="가고 싶은 곳" />
+          <PlacesSection places={trip.places} onAdd={handleAddPlace} onDelete={handleDeletePlace} />
+        </div>
+
+        {/* ─── Section: Memo ─── */}
+        <div className="px-4 pt-6">
+          <SectionHeader emoji="📝" title="메모" />
+          <MemoSection memos={trip.memos} onUpdate={handleUpdateMemos} />
+        </div>
+
+        {/* ─── Section: Budget ─── */}
+        <div className="px-4 pt-6 pb-8">
+          <SectionHeader emoji="💰" title="예산" />
+          <BudgetSection items={trip.budgetItems} totalBudget={trip.budget} onAdd={handleAddBudget} onDelete={handleDeleteBudget} />
+        </div>
       </div>
 
       {/* Modals */}
-      {showAddDay && (
-        <AddDayModal
-          dayCount={plannerState.days.length}
-          onAdd={day => plannerDispatch({ type: "ADD_DAY", payload: day })}
-          onClose={() => setShowAddDay(false)}
-        />
-      )}
       {showAddCard && (
         <AddCardModal
           days={plannerState.days}
