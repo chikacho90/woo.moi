@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { PlannerState } from "../types";
-import { SLOT_TYPES, makeSlotKey, isCompatible } from "../types";
+import { SLOT_TYPES, makeSlotKey, isCompatible, formatDate } from "../types";
 import SlotCell from "./SlotCell";
 import type { PlannerAction } from "../reducer";
 
@@ -33,109 +33,112 @@ export default function PlannerGrid({
 
   const handleSlotTap = (dayId: string, slot: typeof SLOT_TYPES[number]) => {
     const slotKey = makeSlotKey(dayId, slot);
-
     if (ui.mode === "card-selecting" && ui.activeCardId) {
-      // Card was selected, now place it
       const card = cards.find(c => c.id === ui.activeCardId);
       const day = days.find(d => d.id === dayId);
       if (card && day && isCompatible(card, day, slot)) {
         dispatch({ type: "PLACE_CARD", payload: { cardId: ui.activeCardId, slotKey } });
       }
     } else {
-      // Slot-first: select this slot, wait for card
       dispatch({ type: "SET_UI_MODE", payload: { mode: "slot-selecting", activeSlotKey: slotKey } });
     }
   };
 
-  return (
-    <div className="overflow-x-auto">
-      {days.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">📅</span>
-          </div>
-          <p className="text-sm text-gray-400 mb-1">날짜를 추가해서 시작하세요</p>
-          <p className="text-xs text-gray-300">헤더의 + 버튼을 눌러 여행 일정을 만들어보세요</p>
+  if (days.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">🧩</span>
         </div>
-      ) : (
-        <table className="w-full border-collapse min-w-[600px]">
-          <thead>
-            <tr>
-              <th className="w-16 p-2" />
-              {days.map(day => (
-                <th key={day.id} className="p-2 min-w-[160px]">
-                  <div
-                    className="rounded-xl px-3 py-2 text-center cursor-pointer hover:opacity-80 transition-opacity relative group"
-                    style={{ backgroundColor: `${day.color}15`, borderBottom: `3px solid ${day.color}` }}
-                    onClick={() => onEditDay(day.id)}
-                  >
-                    <p className="text-sm font-bold" style={{ color: day.color }}>{day.label}</p>
-                    {day.date && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">{day.date}</p>
-                    )}
-                    {day.area !== "any" && (
-                      <p className="text-[10px] mt-0.5" style={{ color: `${day.color}99` }}>{day.area}</p>
-                    )}
-                    <button
-                      onClick={e => { e.stopPropagation(); setDeleteDayId(day.id); }}
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white shadow border border-gray-200 text-[10px] text-gray-400 hover:text-red-500 hidden group-hover:flex items-center justify-center"
-                      aria-label={`${day.label} 삭제`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SLOT_TYPES.map(slot => (
-              <tr key={slot} className="border-t border-gray-100">
-                <td className="p-2 text-center">
-                  <span className="text-[11px] font-medium text-gray-400">{slot}</span>
-                </td>
-                {days.map(day => {
-                  const slotKey = makeSlotKey(day.id, slot);
-                  return (
-                    <td key={slotKey} className="p-1 align-top border-l border-gray-100">
-                      <SlotCell
-                        day={day}
-                        slot={slot}
-                        cards={cards}
-                        placements={placements}
-                        activeCardId={ui.activeCardId}
-                        activeSlotKey={ui.activeSlotKey}
-                        mode={ui.mode}
-                        dragOverSlot={dragOverSlot}
-                        onDragOver={() => setDragOverSlot(slotKey)}
-                        onDragLeave={() => setDragOverSlot(null)}
-                        onDrop={e => {
-                          e.preventDefault();
-                          const cardId = e.dataTransfer.getData("text/plain") || dragCardId;
-                          if (!cardId) return;
-                          const card = cards.find(c => c.id === cardId);
-                          const d = days.find(d2 => d2.id === day.id);
-                          if (card && d && isCompatible(card, d, slot)) {
-                            dispatch({ type: "PLACE_CARD", payload: { cardId, slotKey } });
-                          }
-                          setDragCardId(null);
-                          setDragOverSlot(null);
-                        }}
-                        onSlotTap={() => handleSlotTap(day.id, slot)}
-                        onCardDragStart={handleCardDragStart}
-                        onLock={id => dispatch({ type: "LOCK_CARD", payload: { cardId: id } })}
-                        onUnlock={id => dispatch({ type: "UNLOCK_CARD", payload: { cardId: id } })}
-                        onRemove={id => dispatch({ type: "UNPLACE_CARD", payload: { cardId: id } })}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+        <p className="text-sm text-gray-400 mb-1">퍼즐판이 비어있어요</p>
+        <p className="text-xs text-gray-300">여행 기간을 설정하면 퍼즐판이 만들어져요</p>
+      </div>
+    );
+  }
 
+  const colCount = days.length;
+
+  return (
+    <>
+      <div
+        className="grid gap-px bg-gray-100 rounded-2xl overflow-hidden border border-gray-100"
+        style={{ gridTemplateColumns: `44px repeat(${colCount}, 1fr)` }}
+      >
+        {/* Header: corner + day headers */}
+        <div className="bg-[#fafaf8]" />
+        {days.map(day => (
+          <div
+            key={day.id}
+            className="bg-white px-1 py-2 text-center cursor-pointer hover:bg-gray-50 transition-colors relative group"
+            onClick={() => onEditDay(day.id)}
+          >
+            <p className="text-[11px] font-bold truncate" style={{ color: day.color }}>{day.label}</p>
+            {day.date && (
+              <p className="text-[9px] text-gray-300 mt-0.5">{formatDate(day.date)}</p>
+            )}
+            {day.area !== "any" && (
+              <p className="text-[9px] truncate" style={{ color: `${day.color}88` }}>{day.area}</p>
+            )}
+            <button
+              onClick={e => { e.stopPropagation(); setDeleteDayId(day.id); }}
+              className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-white shadow-sm border border-gray-200 text-[8px] text-gray-400 hover:text-red-500 hidden group-hover:flex items-center justify-center z-10"
+              aria-label={`${day.label} 삭제`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        {/* Slot rows */}
+        {SLOT_TYPES.map(slot => (
+          <div key={slot} className="contents">
+            {/* Slot label */}
+            <div className="bg-[#fafaf8] flex items-center justify-center">
+              <span className="text-[10px] font-semibold text-gray-300">{slot}</span>
+            </div>
+
+            {/* Cells */}
+            {days.map(day => {
+              const slotKey = makeSlotKey(day.id, slot);
+              return (
+                <div key={slotKey} className="bg-white">
+                  <SlotCell
+                    day={day}
+                    slot={slot}
+                    cards={cards}
+                    placements={placements}
+                    activeCardId={ui.activeCardId}
+                    activeSlotKey={ui.activeSlotKey}
+                    mode={ui.mode}
+                    dragOverSlot={dragOverSlot}
+                    onDragOver={() => setDragOverSlot(slotKey)}
+                    onDragLeave={() => setDragOverSlot(null)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      const cardId = e.dataTransfer.getData("text/plain") || dragCardId;
+                      if (!cardId) return;
+                      const card = cards.find(c => c.id === cardId);
+                      const d = days.find(d2 => d2.id === day.id);
+                      if (card && d && isCompatible(card, d, slot)) {
+                        dispatch({ type: "PLACE_CARD", payload: { cardId, slotKey } });
+                      }
+                      setDragCardId(null);
+                      setDragOverSlot(null);
+                    }}
+                    onSlotTap={() => handleSlotTap(day.id, slot)}
+                    onCardDragStart={handleCardDragStart}
+                    onLock={id => dispatch({ type: "LOCK_CARD", payload: { cardId: id } })}
+                    onUnlock={id => dispatch({ type: "UNLOCK_CARD", payload: { cardId: id } })}
+                    onRemove={id => dispatch({ type: "UNPLACE_CARD", payload: { cardId: id } })}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Delete day confirm */}
       {deleteDayId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setDeleteDayId(null)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fadeIn" />
@@ -150,6 +153,6 @@ export default function PlannerGrid({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

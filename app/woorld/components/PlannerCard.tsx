@@ -6,6 +6,7 @@ import { CATEGORY_COLORS } from "../types";
 interface Props {
   card: Card;
   placement?: Placement;
+  compact?: boolean;
   isDragging?: boolean;
   isHighlighted?: boolean;
   isDimmed?: boolean;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export default function PlannerCard({
-  card, placement, isDragging, isHighlighted, isDimmed,
+  card, placement, compact, isDragging, isHighlighted, isDimmed,
   onDragStart, onTap, onLock, onUnlock, onRemove,
 }: Props) {
   const [showActions, setShowActions] = useState(false);
@@ -41,7 +42,7 @@ export default function PlannerCard({
       }}
       onMouseEnter={() => isPlaced && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
-      className={`relative rounded-xl px-3 py-2.5 text-left transition-all select-none ${
+      className={`relative rounded-xl ${compact ? "px-1.5 py-1" : "px-3 py-2.5"} text-left transition-all select-none ${
         isDragging ? "opacity-40 scale-95" : ""
       } ${isDimmed ? "opacity-30" : ""} ${
         isHighlighted ? "ring-2 ring-blue-400 ring-offset-1" : ""
@@ -84,18 +85,18 @@ export default function PlannerCard({
         </div>
       )}
 
-      <div className="flex items-start gap-2">
-        <span className="text-base leading-none mt-0.5">{card.emoji}</span>
+      <div className={`flex items-center ${compact ? "gap-1" : "gap-2"}`}>
+        <span className={compact ? "text-sm" : "text-base leading-none mt-0.5"}>{card.emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold leading-tight truncate" style={{ color: cat.text }}>
+          <p className={`font-semibold leading-tight truncate ${compact ? "text-[10px]" : "text-[13px]"}`} style={{ color: cat.text }}>
             {card.name}
           </p>
-          {card.description && (
+          {!compact && card.description && (
             <p className="text-[11px] mt-0.5 truncate" style={{ color: `${cat.text}99` }}>
               {card.description}
             </p>
           )}
-          {card.tags.length > 0 && (
+          {!compact && card.tags.length > 0 && (
             <div className="flex gap-1 mt-1.5 flex-wrap">
               {card.tags.map((t, i) => (
                 <span

@@ -61,7 +61,7 @@ export default function SlotCell({
 
   return (
     <div
-      className="min-h-[60px] flex flex-col gap-1.5 p-1"
+      className="min-h-[48px] flex flex-col gap-1 p-0.5"
       onDragOver={e => {
         e.preventDefault();
         onDragOver(e);
@@ -78,6 +78,7 @@ export default function SlotCell({
             key={p.cardId}
             card={card}
             placement={p}
+            compact
             onDragStart={e => onCardDragStart(p.cardId, e)}
             onLock={() => onLock(p.cardId)}
             onUnlock={() => onUnlock(p.cardId)}
@@ -89,7 +90,9 @@ export default function SlotCell({
       {/* Dropzone */}
       <button
         onClick={onSlotTap}
-        className="w-full rounded-lg py-2 text-xs font-medium transition-all flex items-center justify-center"
+        className={`w-full rounded-lg text-[10px] font-medium transition-all flex items-center justify-center ${
+          slotPlacements.length > 0 ? "py-0.5 opacity-40 hover:opacity-100" : "py-2"
+        }`}
         style={{
           border: style.border,
           backgroundColor: style.bg,
