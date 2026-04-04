@@ -1,185 +1,175 @@
 "use client";
+import { useReducer, useEffect, useRef, useCallback, useState } from "react";
+import { plannerReducer, initialState } from "./reducer";
+import type { PlannerState } from "./types";
+import ScheduleGrid from "./components/ScheduleGrid";
+import CardPool from "./components/CardPool";
+import AddDayModal from "./components/AddDayModal";
+import AddCardModal from "./components/AddCardModal";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { getTrips, deleteTrip, migrateOldPlanner, migrateOldBudgetFormat } from "./store/trips";
-import type { Trip } from "./types";
-import { STYLE_LABELS, COMPANION_LABELS } from "./types";
-import { findDestination } from "./data/destinations";
+const STORAGE_KEY = "woorld-planner-state";
 
-function TripCard({ trip, onDelete }: { trip: Trip; onDelete: (id: string) => void }) {
-  const router = useRouter();
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [swipeX, setSwipeX] = useState(0);
-  const startX = useRef(0);
-  const swiping = useRef(false);
-
-  const dest = trip.destinationId ? findDestination(trip.destinationId) : null;
-  const emoji = dest?.emoji || (trip.destination ? "✈️" : "🗺");
-
-  const dateLabel = trip.startDate
-    ? `${trip.startDate}${trip.endDate ? ` ~ ${trip.endDate}` : ""}`
-    : null;
-  const nightsLabel = trip.nights ? `${trip.nights}박 ${trip.nights + 1}일` : null;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0].clientX;
-    swiping.current = true;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swiping.current) return;
-    const dx = e.touches[0].clientX - startX.current;
-    setSwipeX(Math.min(0, dx));
-  };
-  const handleTouchEnd = () => {
-    swiping.current = false;
-    if (swipeX < -80) {
-      setShowConfirm(true);
-    }
-    setSwipeX(0);
-  };
-
-  return (
-    <>
-      <button
-        onClick={() => router.push(`/woorld/${trip.id}`)}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="w-full text-left p-5 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all group relative bg-white active:scale-[0.98]"
-        style={{ transform: swipeX ? `translateX(${swipeX}px)` : undefined }}
-        aria-label={`${trip.destination || "미정"} 여행 열기`}
-      >
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
-          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all text-xs"
-          aria-label={`${trip.destination || "미정"} 여행 삭제`}
-        >
-          ✕
-        </button>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">{emoji}</span>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 text-base truncate">
-              {trip.destination || "어딘가로..."}
-            </h3>
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
-              {dateLabel && <span>{dateLabel}</span>}
-              {nightsLabel && <span>{nightsLabel}</span>}
-              {!dateLabel && !nightsLabel && <span>날짜 미정</span>}
-              <span>·</span>
-              <span>{COMPANION_LABELS[trip.companions] || trip.companions}</span>
-            </div>
-            {trip.styles.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {trip.styles.map(s => (
-                  <span key={s} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-50 text-gray-500">
-                    {STYLE_LABELS[s] || s}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-3 mt-2 text-[10px] text-gray-300">
-              {trip.days.length > 0 && <span>📋 {trip.days.length}일</span>}
-              {trip.cards.length > 0 && <span>🃏 {trip.cards.length}카드</span>}
-              {trip.places.length > 0 && <span>📍 {trip.places.length}장소</span>}
-            </div>
-          </div>
-        </div>
-      </button>
-
-      {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ animation: "fadeIn 150ms" }} />
-          <div onClick={e => e.stopPropagation()} className="relative bg-white rounded-2xl shadow-xl w-full max-w-xs p-6" style={{ animation: "modalIn 200ms" }}>
-            <p className="text-sm text-gray-700 text-center mb-5 leading-relaxed">이 여행을 삭제할까요?</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">취소</button>
-              <button onClick={() => { onDelete(trip.id); setShowConfirm(false); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">삭제</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+function loadState(): PlannerState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PlannerState;
+  } catch {
+    return null;
+  }
 }
 
-export default function WoorldLanding() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const router = useRouter();
+export default function WoorldPage() {
+  const [state, dispatch] = useReducer(plannerReducer, initialState, (init) => {
+    const saved = loadState();
+    return saved ?? init;
+  });
 
+  const [dayModalOpen, setDayModalOpen] = useState(false);
+  const [cardModalOpen, setCardModalOpen] = useState(false);
+
+  // Auto-save to localStorage (debounced)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    migrateOldPlanner();
-    migrateOldBudgetFormat();
-    setTrips(getTrips());
-    setLoaded(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }, 500);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [state]);
+
+  const handleReset = useCallback(() => {
+    if (confirm("모든 데이터를 초기화하시겠습니까?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      dispatch({ type: "RESET" });
+    }
   }, []);
 
-  const handleDelete = (id: string) => {
-    deleteTrip(id);
-    setTrips(getTrips());
+  const handleCancel = () => {
+    dispatch({
+      type: "SET_UI",
+      ui: { mode: "idle", activeCardId: null, activeSlotKey: null },
+    });
   };
 
-  if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#fafaf8" }}>
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-300">불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  const modeBanner = (() => {
+    if (state.ui.mode === "card-selecting") {
+      const card = state.cards.find((c) => c.id === state.ui.activeCardId);
+      return card
+        ? `${card.emoji} ${card.name} — 배치할 슬롯을 선택하세요`
+        : null;
+    }
+    if (state.ui.mode === "slot-selecting") {
+      return "슬롯 선택됨 — 아래 후보 풀에서 카드를 선택하세요";
+    }
+    return null;
+  })();
+
+  const poolCount = state.cards.filter(
+    (c) => !state.placements.some((p) => p.cardId === c.id)
+  ).length;
 
   return (
-    <div className="min-h-screen" style={{ background: "#fafaf8", color: "#1a1a1a" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "#0a0a12", color: "#e5e5e5" }}
+    >
       {/* Header */}
-      <div className="max-w-lg mx-auto px-5 pt-12 pb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <a href="/" className="text-xs text-gray-300 hover:text-gray-500 transition-colors" aria-label="홈으로 돌아가기">&larr;</a>
-          <h1 className="text-2xl font-bold tracking-tight">woorld</h1>
-        </div>
-        <p className="text-sm text-gray-400">어디로 떠날까?</p>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-lg mx-auto px-5 pb-32">
-        {trips.length === 0 ? (
-          <div className="text-center py-20">
-            <span className="text-5xl block mb-4">🌍</span>
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">첫 여행을 계획해볼까요?</h2>
-            <p className="text-sm text-gray-400 mb-8">목적지, 일정, 예산까지<br/>한 곳에서 관리해보세요</p>
+      <div
+        className="sticky top-0 z-40 px-4 py-3 backdrop-blur-md"
+        style={{ background: "rgba(10,10,18,0.85)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+          <h1 className="text-sm font-bold tracking-tight" style={{ color: "#fff" }}>
+            woorld
+          </h1>
+          <div className="flex gap-1.5">
             <button
-              onClick={() => router.push("/woorld/new")}
-              className="px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-800 active:scale-95 transition-all"
+              onClick={() => setDayModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: "rgba(255,255,255,0.08)", color: "#ccc" }}
             >
-              + 새 여행 만들기
+              + 날짜
+            </button>
+            <button
+              onClick={() => setCardModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: "#fff", color: "#0a0a12" }}
+            >
+              + 카드
+            </button>
+            <button
+              onClick={handleReset}
+              className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              초기화
             </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {trips.map(t => (
-              <TripCard key={t.id} trip={t} onDelete={handleDelete} />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* FAB */}
-      {trips.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+      {/* Mode banner */}
+      {modeBanner && (
+        <div
+          className="sticky top-[49px] z-30 px-4 py-2 flex items-center justify-between"
+          style={{ background: "rgba(24,95,165,0.15)", borderBottom: "1px solid rgba(24,95,165,0.2)" }}
+        >
+          <span className="text-xs font-medium" style={{ color: "#7eb8f0" }}>
+            {modeBanner}
+          </span>
           <button
-            onClick={() => router.push("/woorld/new")}
-            className="px-6 py-3 rounded-full bg-gray-900 text-white text-sm font-semibold flex items-center gap-2 shadow-lg hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all"
-            aria-label="새 여행 만들기"
+            onClick={handleCancel}
+            className="text-xs px-2 py-0.5 rounded"
+            style={{ background: "rgba(24,95,165,0.2)", color: "#7eb8f0" }}
           >
-            + 새 여행
+            취소
           </button>
         </div>
       )}
+
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-6">
+        {/* Schedule Grid */}
+        <ScheduleGrid state={state} dispatch={dispatch} />
+
+        {/* Card Pool */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <h2
+              className="text-xs font-semibold tracking-wide uppercase"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              후보 카드 풀
+            </h2>
+            {poolCount > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full"
+                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+              >
+                {poolCount}
+              </span>
+            )}
+          </div>
+          <CardPool state={state} dispatch={dispatch} />
+        </div>
+      </div>
+
+      {/* Modals */}
+      <AddDayModal
+        open={dayModalOpen}
+        onClose={() => setDayModalOpen(false)}
+        onAdd={(day) => dispatch({ type: "ADD_DAY", day })}
+        nextIndex={state.days.length}
+      />
+      <AddCardModal
+        open={cardModalOpen}
+        onClose={() => setCardModalOpen(false)}
+        onAdd={(card) => dispatch({ type: "ADD_CARD", card })}
+        days={state.days}
+      />
     </div>
   );
 }

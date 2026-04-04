@@ -1,61 +1,109 @@
 "use client";
-import type { Card, Placement, CardCategory } from "../types";
-import { CATEGORY_COLORS } from "../types";
-import PlannerCard from "./PlannerCard";
-
-const ALL_CATEGORIES: ("all" | CardCategory)[] = ["all", "transport", "accommodation", "activity", "food", "chill", "errand"];
+import type { PlannerState, CardCategory, SlotType } from "../types";
+import { CATEGORY_COLORS, parseSlotKey } from "../types";
+import { isCompatible } from "../reducer";
+import type { PlannerAction } from "../reducer";
+import CardChip from "./CardChip";
 
 interface Props {
-  cards: Card[];
-  placements: Placement[];
-  categoryFilter: string;
-  activeCardId: string | null;
-  mode: string;
-  onCategoryChange: (cat: string) => void;
-  onCardTap: (cardId: string) => void;
-  onCardDragStart: (cardId: string, e: React.DragEvent) => void;
+  state: PlannerState;
+  dispatch: React.Dispatch<PlannerAction>;
 }
 
-export default function CardPool({
-  cards, placements, categoryFilter, activeCardId, mode,
-  onCategoryChange, onCardTap, onCardDragStart,
-}: Props) {
-  const placedIds = new Set(placements.map(p => p.cardId));
-  const poolCards = cards.filter(c => !placedIds.has(c.id));
+const FILTERS: { key: string; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "transport", label: "교통" },
+  { key: "accommodation", label: "숙소" },
+  { key: "activity", label: "액티비티" },
+  { key: "food", label: "식사" },
+  { key: "chill", label: "힐링" },
+  { key: "errand", label: "기타" },
+];
 
-  const filtered = categoryFilter === "all"
-    ? poolCards
-    : poolCards.filter(c => c.category === categoryFilter);
+export default function CardPool({ state, dispatch }: Props) {
+  const { cards, placements, ui, days } = state;
+  const placedIds = new Set(placements.map((p) => p.cardId));
+  const poolCards = cards.filter((c) => !placedIds.has(c.id));
 
-  // In slot-selecting mode, highlight only compatible cards
-  const isSlotSelecting = mode === "slot-selecting";
+  const filtered =
+    ui.categoryFilter === "all"
+      ? poolCards
+      : poolCards.filter((c) => c.category === ui.categoryFilter);
+
+  // Determine dimming for slot-selecting mode
+  const isDimmed = (cardId: string): boolean => {
+    if (ui.mode !== "slot-selecting" || !ui.activeSlotKey) return false;
+    const { dayId, slot } = parseSlotKey(ui.activeSlotKey);
+    const day = days.find((d) => d.id === dayId);
+    const card = cards.find((c) => c.id === cardId);
+    if (!day || !card) return true;
+    return !isCompatible(card, day, slot);
+  };
+
+  const handleCardTap = (cardId: string) => {
+    // If in slot-selecting mode, place the card
+    if (ui.mode === "slot-selecting" && ui.activeSlotKey) {
+      const [dayId, ...slotParts] = ui.activeSlotKey.split("-");
+      const slot = slotParts.join("-") as SlotType;
+      const day = days.find((d) => d.id === dayId);
+      const card = cards.find((c) => c.id === cardId);
+      if (card && day && isCompatible(card, day, slot)) {
+        dispatch({ type: "PLACE_CARD", cardId, slotKey: ui.activeSlotKey });
+      }
+      return;
+    }
+
+    // Otherwise toggle card-selecting mode
+    if (ui.mode === "card-selecting" && ui.activeCardId === cardId) {
+      dispatch({ type: "SET_UI", ui: { mode: "idle", activeCardId: null } });
+      return;
+    }
+    dispatch({
+      type: "SET_UI",
+      ui: { mode: "card-selecting", activeCardId: cardId, activeSlotKey: null },
+    });
+  };
+
+  const handleDragStart = (e: React.DragEvent, cardId: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", cardId);
+    dispatch({ type: "SET_UI", ui: { mode: "dragging", activeCardId: cardId } });
+  };
 
   return (
-    <div className="border-t border-gray-200 bg-gray-50/80 px-4 py-4">
+    <div>
       {/* Category filter */}
       <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
-        {ALL_CATEGORIES.map(cat => {
-          const isAll = cat === "all";
-          const catColor = isAll ? null : CATEGORY_COLORS[cat];
-          const isActive = categoryFilter === cat;
+        {FILTERS.map((f) => {
+          const active = ui.categoryFilter === f.key;
+          const cat =
+            f.key !== "all"
+              ? CATEGORY_COLORS[f.key as CardCategory]
+              : null;
           return (
             <button
-              key={cat}
-              onClick={() => onCategoryChange(cat)}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap shrink-0"
-              style={
-                isActive
-                  ? {
-                      backgroundColor: isAll ? "#1f2937" : catColor!.text,
-                      color: "#fff",
-                    }
-                  : {
-                      backgroundColor: isAll ? "#f3f4f6" : catColor!.bg,
-                      color: isAll ? "#6b7280" : catColor!.text,
-                    }
+              key={f.key}
+              onClick={() =>
+                dispatch({
+                  type: "SET_UI",
+                  ui: { categoryFilter: f.key },
+                })
               }
+              className="px-3 py-1 rounded-full text-xs whitespace-nowrap border transition-colors"
+              style={{
+                background: active
+                  ? cat?.bg ?? "rgba(255,255,255,0.12)"
+                  : "transparent",
+                color: active
+                  ? cat?.text ?? "#fff"
+                  : "rgba(255,255,255,0.4)",
+                borderColor: active
+                  ? (cat?.text ?? "#fff") + "40"
+                  : "rgba(255,255,255,0.1)",
+                fontWeight: active ? 600 : 400,
+              }}
             >
-              {isAll ? "전체" : catColor!.label}
+              {f.label}
             </button>
           );
         })}
@@ -63,28 +111,44 @@ export default function CardPool({
 
       {/* Cards */}
       {filtered.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-sm text-gray-400">
-            {poolCards.length === 0
-              ? "카드를 추가해서 일정을 채워보세요"
-              : "이 카테고리에 카드가 없어요"}
-          </p>
+        <div
+          className="flex items-center justify-center py-8 rounded-xl border-2 border-dashed"
+          style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)" }}
+        >
+          <div className="text-center">
+            <div className="text-2xl mb-1">🃏</div>
+            <div className="text-xs">
+              {poolCards.length === 0
+                ? "카드를 추가해서 일정을 채워보세요"
+                : "이 카테고리에 카드가 없습니다"}
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {filtered.map(card => {
-            const isActive = activeCardId === card.id;
-            return (
-              <PlannerCard
-                key={card.id}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {filtered.map((card) => (
+            <div key={card.id} className="flex-shrink-0 relative group">
+              <CardChip
                 card={card}
-                isHighlighted={isActive}
-                isDimmed={isSlotSelecting && !isActive}
-                onTap={() => onCardTap(card.id)}
-                onDragStart={e => onCardDragStart(card.id, e)}
+                isPool
+                isActive={ui.mode === "card-selecting" && ui.activeCardId === card.id}
+                isDimmed={isDimmed(card.id)}
+                onTap={() => handleCardTap(card.id)}
+                onDragStart={(e) => handleDragStart(e, card.id)}
               />
-            );
-          })}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dispatch({ type: "REMOVE_CARD", cardId: card.id });
+                }}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.15)", color: "#999" }}
+                title="카드 삭제"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
