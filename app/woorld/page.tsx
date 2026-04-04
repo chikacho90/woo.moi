@@ -2,8 +2,10 @@
 import { useReducer, useEffect, useRef, useCallback, useState } from "react";
 import { plannerReducer, initialState } from "./reducer";
 import type { PlannerState } from "./types";
+import { CURRENCY_OPTIONS } from "./types";
 import ScheduleGrid from "./components/ScheduleGrid";
 import CardPool from "./components/CardPool";
+import TripPanel from "./components/TripPanel";
 import AddDayModal from "./components/AddDayModal";
 import AddCardModal from "./components/AddCardModal";
 
@@ -14,7 +16,16 @@ function loadState(): PlannerState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as PlannerState;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed = JSON.parse(raw) as any;
+    // migrate: add trip if missing
+    if (!parsed.trip) {
+      parsed.trip = { ...initialState.trip };
+    }
+    if (parsed.ui && !("showTripPanel" in parsed.ui)) {
+      parsed.ui.showTripPanel = false;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -72,6 +83,15 @@ export default function WoorldPage() {
     (c) => !state.placements.some((p) => p.cardId === c.id)
   ).length;
 
+  // 예산 요약
+  const { trip, placements, cards } = state;
+  const placedCost = placements.reduce((sum, p) => {
+    const card = cards.find((c) => c.id === p.cardId);
+    return sum + (card?.estimatedCost ?? 0);
+  }, 0);
+  const cur = CURRENCY_OPTIONS.find((c) => c.code === trip.currency) ?? CURRENCY_OPTIONS[0];
+  const hasBudget = trip.budget !== null && trip.budget > 0;
+
   return (
     <div
       className="min-h-screen"
@@ -82,33 +102,77 @@ export default function WoorldPage() {
         className="sticky top-0 z-40 px-4 py-3 backdrop-blur-md"
         style={{ background: "rgba(10,10,18,0.85)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <h1 className="text-sm font-bold tracking-tight" style={{ color: "#fff" }}>
-            woorld
-          </h1>
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => setDayModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "rgba(255,255,255,0.08)", color: "#ccc" }}
-            >
-              + 날짜
-            </button>
-            <button
-              onClick={() => setCardModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "#fff", color: "#0a0a12" }}
-            >
-              + 카드
-            </button>
-            <button
-              onClick={handleReset}
-              className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
-              style={{ color: "rgba(255,255,255,0.3)" }}
-            >
-              초기화
-            </button>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-sm font-bold tracking-tight flex-shrink-0" style={{ color: "#fff" }}>
+                woorld
+              </h1>
+              {trip.destination && (
+                <span className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  / {trip.destination}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => dispatch({ type: "SET_UI", ui: { showTripPanel: !state.ui.showTripPanel } })}
+                className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                style={{
+                  background: state.ui.showTripPanel ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.08)",
+                  color: state.ui.showTripPanel ? "#a5b4fc" : "#ccc",
+                }}
+              >
+                설정
+              </button>
+              <button
+                onClick={() => setDayModalOpen(true)}
+                className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                style={{ background: "rgba(255,255,255,0.08)", color: "#ccc" }}
+              >
+                + 날짜
+              </button>
+              <button
+                onClick={() => setCardModalOpen(true)}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{ background: "#fff", color: "#0a0a12" }}
+              >
+                + 카드
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-2 py-1.5 rounded-lg text-xs transition-colors hidden sm:block"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                초기화
+              </button>
+            </div>
           </div>
+
+          {/* 간략 요약 바 — 목적지/기간/예산이 있을 때 표시 */}
+          {(trip.destination || hasBudget || trip.tags.length > 0) && !state.ui.showTripPanel && (
+            <div className="flex items-center gap-3 mt-2 overflow-x-auto pb-0.5">
+              {trip.startDate && trip.endDate && (
+                <span className="text-[10px] whitespace-nowrap" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  {trip.startDate} → {trip.endDate}
+                </span>
+              )}
+              {hasBudget && (
+                <span className="text-[10px] whitespace-nowrap" style={{ color: placedCost > trip.budget! ? "#ef4444" : "rgba(255,255,255,0.3)" }}>
+                  {cur.symbol}{placedCost.toLocaleString()} / {cur.symbol}{trip.budget!.toLocaleString()}
+                </span>
+              )}
+              {trip.tags.map((t) => (
+                <span
+                  key={t}
+                  className="text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                  style={{ background: "rgba(99,102,241,0.1)", color: "rgba(165,180,252,0.7)" }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -131,7 +195,10 @@ export default function WoorldPage() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 py-4 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+        {/* Trip Panel (collapsible) */}
+        <TripPanel state={state} dispatch={dispatch} />
+
         {/* Schedule Grid */}
         <ScheduleGrid state={state} dispatch={dispatch} />
 
@@ -163,12 +230,14 @@ export default function WoorldPage() {
         onClose={() => setDayModalOpen(false)}
         onAdd={(day) => dispatch({ type: "ADD_DAY", day })}
         nextIndex={state.days.length}
+        areas={state.trip.areas}
       />
       <AddCardModal
         open={cardModalOpen}
         onClose={() => setCardModalOpen(false)}
         onAdd={(card) => dispatch({ type: "ADD_CARD", card })}
         days={state.days}
+        areas={state.trip.areas}
       />
     </div>
   );
