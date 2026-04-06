@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   onAdd: (card: Card) => void;
   days: TripDay[];
+  areas?: string[];
 }
 
 const CATEGORIES: CardCategory[] = [
@@ -19,7 +20,7 @@ const CATEGORIES: CardCategory[] = [
   "errand",
 ];
 
-export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
+export default function AddCardModal({ open, onClose, onAdd, days, areas = [] }: Props) {
   const [emoji, setEmoji] = useState("📌");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -29,6 +30,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
   const [recommendedDays, setRecommendedDays] = useState<number[]>([]);
   const [recommendedSlot, setRecommendedSlot] = useState<SlotType | "">("");
   const [requiresReservation, setRequiresReservation] = useState(false);
+  const [estimatedCost, setEstimatedCost] = useState("");
 
   if (!open) return null;
 
@@ -38,7 +40,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
     );
   };
 
-  const areaOptions = ["any", "시내", "리조트", "공항"];
+  const areaOptions = ["any", ...areas.filter((a) => a !== "any")];
   const toggleArea = (a: string) => {
     if (a === "any") {
       setCompatibleAreas(["any"]);
@@ -74,6 +76,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
       compatibleAreas,
       recommendedDayIndex: recommendedDays.length > 0 ? recommendedDays : undefined,
       recommendedSlot: recommendedSlot || undefined,
+      estimatedCost: estimatedCost ? Number(estimatedCost) : undefined,
       requiresReservation,
       reservationStatus: requiresReservation ? "none" : undefined,
     });
@@ -86,48 +89,49 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
     setCompatibleAreas(["any"]);
     setRecommendedDays([]);
     setRecommendedSlot("");
+    setEstimatedCost("");
     setRequiresReservation(false);
     onClose();
   };
 
   const chipStyle = (active: boolean) => ({
-    background: active ? "#1a1a1a" : "#fff",
-    color: active ? "#fff" : "#555",
-    borderColor: active ? "#1a1a1a" : "#ddd",
+    background: active ? "rgba(255,255,255,0.15)" : "transparent",
+    color: active ? "#fff" : "rgba(255,255,255,0.4)",
+    border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)"}`,
   });
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.4)" }}
+      style={{ background: "rgba(0,0,0,0.6)" }}
       onClick={onClose}
     >
       <div
-        className="rounded-2xl p-6 w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto"
-        style={{ background: "#fff" }}
+        className="rounded-2xl p-5 w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto"
+        style={{ background: "#16161e", border: "1px solid rgba(255,255,255,0.08)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-bold mb-4" style={{ color: "#1a1a1a" }}>
+        <h2 className="text-sm font-bold mb-4" style={{ color: "#fff" }}>
           카드 추가
         </h2>
 
         <div className="space-y-3">
           {/* 이모지 + 이름 */}
           <div className="flex gap-2">
-            <div className="w-16">
-              <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <div className="w-14">
+              <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
                 이모지
               </label>
               <input
                 type="text"
                 value={emoji}
                 onChange={(e) => setEmoji(e.target.value)}
-                className="w-full border rounded-lg px-2 py-2 text-center text-lg"
-                style={{ borderColor: "#ddd" }}
+                className="w-full rounded-lg px-2 py-2 text-center text-lg outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+              <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
                 이름 *
               </label>
               <input
@@ -135,15 +139,15 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="예: 야에야마 소바"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                style={{ borderColor: "#ddd", color: "#1a1a1a" }}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={{ background: "rgba(255,255,255,0.06)", color: "#e5e5e5", border: "1px solid rgba(255,255,255,0.08)" }}
               />
             </div>
           </div>
 
           {/* 설명 */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
               설명
             </label>
             <input
@@ -151,14 +155,14 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="짧은 설명"
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              style={{ borderColor: "#ddd", color: "#1a1a1a" }}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "rgba(255,255,255,0.06)", color: "#e5e5e5", border: "1px solid rgba(255,255,255,0.08)" }}
             />
           </div>
 
           {/* 카테고리 */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
               카테고리
             </label>
             <div className="flex gap-1.5 flex-wrap">
@@ -166,11 +170,11 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                 <button
                   key={c}
                   onClick={() => setCategory(c)}
-                  className="px-2.5 py-1 rounded-full text-xs border"
+                  className="px-2.5 py-1 rounded-full text-xs"
                   style={{
-                    background: category === c ? CATEGORY_COLORS[c].bg : "#fff",
-                    color: category === c ? CATEGORY_COLORS[c].text : "#555",
-                    borderColor: category === c ? CATEGORY_COLORS[c].text + "40" : "#ddd",
+                    background: category === c ? CATEGORY_COLORS[c].bg : "transparent",
+                    color: category === c ? CATEGORY_COLORS[c].text : "rgba(255,255,255,0.4)",
+                    border: `1px solid ${category === c ? CATEGORY_COLORS[c].text + "40" : "rgba(255,255,255,0.08)"}`,
                     fontWeight: category === c ? 600 : 400,
                   }}
                 >
@@ -180,9 +184,24 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
             </div>
           </div>
 
+          {/* 예상 비용 */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+              예상 비용 (선택)
+            </label>
+            <input
+              type="number"
+              value={estimatedCost}
+              onChange={(e) => setEstimatedCost(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "rgba(255,255,255,0.06)", color: "#e5e5e5", border: "1px solid rgba(255,255,255,0.08)" }}
+            />
+          </div>
+
           {/* 호환 시간대 */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
               호환 시간대
             </label>
             <div className="flex gap-1.5 flex-wrap">
@@ -190,7 +209,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                 <button
                   key={s}
                   onClick={() => toggleSlot(s)}
-                  className="px-2.5 py-1 rounded-full text-xs border"
+                  className="px-2.5 py-1 rounded-full text-xs"
                   style={chipStyle(compatibleSlots.includes(s))}
                 >
                   {s}
@@ -201,7 +220,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
 
           {/* 호환 위치 */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
               호환 위치
             </label>
             <div className="flex gap-1.5 flex-wrap">
@@ -209,7 +228,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                 <button
                   key={a}
                   onClick={() => toggleArea(a)}
-                  className="px-2.5 py-1 rounded-full text-xs border"
+                  className="px-2.5 py-1 rounded-full text-xs"
                   style={chipStyle(
                     compatibleAreas.includes(a) ||
                       (a === "any" && compatibleAreas.includes("any"))
@@ -224,7 +243,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
           {/* 추천 날짜 */}
           {days.length > 0 && (
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+              <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
                 추천 날짜 (선택)
               </label>
               <div className="flex gap-1.5 flex-wrap">
@@ -232,7 +251,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                   <button
                     key={d.id}
                     onClick={() => toggleDay(d.index)}
-                    className="px-2.5 py-1 rounded-full text-xs border"
+                    className="px-2.5 py-1 rounded-full text-xs"
                     style={chipStyle(recommendedDays.includes(d.index))}
                   >
                     {d.label}
@@ -244,7 +263,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
 
           {/* 추천 시간대 */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: "#555" }}>
+            <label className="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
               추천 시간대 (선택)
             </label>
             <div className="flex gap-1.5 flex-wrap">
@@ -252,7 +271,7 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
                 <button
                   key={s}
                   onClick={() => setRecommendedSlot(recommendedSlot === s ? "" : s)}
-                  className="px-2.5 py-1 rounded-full text-xs border"
+                  className="px-2.5 py-1 rounded-full text-xs"
                   style={chipStyle(recommendedSlot === s)}
                 >
                   {s}
@@ -267,9 +286,9 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
               type="checkbox"
               checked={requiresReservation}
               onChange={(e) => setRequiresReservation(e.target.checked)}
-              className="w-4 h-4"
+              className="w-4 h-4 rounded"
             />
-            <span className="text-sm" style={{ color: "#555" }}>
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
               예약 필요
             </span>
           </label>
@@ -278,8 +297,8 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
         <div className="flex gap-2 mt-5">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg text-sm border"
-            style={{ borderColor: "#ddd", color: "#555" }}
+            className="flex-1 py-2 rounded-lg text-sm"
+            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
           >
             취소
           </button>
@@ -287,8 +306,8 @@ export default function AddCardModal({ open, onClose, onAdd, days }: Props) {
             onClick={handleSubmit}
             className="flex-1 py-2 rounded-lg text-sm font-medium"
             style={{
-              background: name.trim() ? "#1a1a1a" : "#ccc",
-              color: "#fff",
+              background: name.trim() ? "#fff" : "rgba(255,255,255,0.1)",
+              color: name.trim() ? "#0a0a12" : "rgba(255,255,255,0.3)",
             }}
           >
             추가

@@ -168,8 +168,16 @@ export default function CardChip({
           {card.description}
         </div>
       )}
-      {card.tags.length > 0 && (
+      {(card.tags.length > 0 || card.estimatedCost) && (
         <div className="flex gap-1 mt-1 flex-wrap">
+          {card.estimatedCost != null && card.estimatedCost > 0 && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}
+            >
+              {card.estimatedCost.toLocaleString()}
+            </span>
+          )}
           {card.tags.map((t, i) => (
             <span
               key={i}

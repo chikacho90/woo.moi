@@ -203,12 +203,21 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto pb-2" onDragEnd={handleDragEnd}>
+    <div
+      className="overflow-x-auto pb-2"
+      onDragEnd={handleDragEnd}
+      style={{
+        WebkitOverflowScrolling: "touch",
+        scrollSnapType: "x proximity",
+        scrollbarWidth: "none",
+      }}
+    >
+      <style>{`.schedule-grid-scroll::-webkit-scrollbar { display: none; }`}</style>
       <div
-        className="grid gap-0"
+        className="grid gap-0 schedule-grid-scroll"
         style={{
-          gridTemplateColumns: `56px repeat(${days.length}, minmax(160px, 1fr))`,
-          minWidth: `${56 + days.length * 160}px`,
+          gridTemplateColumns: `48px repeat(${days.length}, minmax(140px, 1fr))`,
+          minWidth: `${48 + days.length * 140}px`,
         }}
       >
         {/* Header row */}
@@ -217,7 +226,7 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
           <div
             key={day.id}
             className="rounded-t-lg mx-0.5 px-2 py-1.5"
-            style={{ background: day.color + "18" }}
+            style={{ background: day.color + "18", scrollSnapAlign: "start" }}
           >
             {editingDay === day.id ? (
               /* ── 인라인 편집 모드 ── */
@@ -242,7 +251,7 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
                   style={{ color: day.color, borderBottom: `2px solid ${day.color}` }}
                 />
                 <div className="flex gap-1 flex-wrap">
-                  {["any", "시내", "리조트", "공항"].map((a) => (
+                  {["any", ...(state.trip?.areas ?? []).filter((a: string) => a !== "any")].map((a) => (
                     <button
                       key={a}
                       onClick={() => setEditArea(a)}

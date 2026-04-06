@@ -28,6 +28,34 @@ export const CATEGORY_COLORS: Record<
   errand: { bg: "#e6f1fb", text: "#185fa5", label: "기타" },
 };
 
+// ── 트립 메타 ──
+export interface TripMeta {
+  destination: string;
+  startDate: string | null;
+  endDate: string | null;
+  budget: number | null;       // 총 예산 (원)
+  currency: string;            // "KRW", "JPY", "USD" 등
+  tags: string[];              // 자유 태그: "가족여행", "힐링", "맛집투어" 등
+  areas: string[];             // 이 여행에서 사용되는 위치 목록
+}
+
+export const DEFAULT_TRIP_META: TripMeta = {
+  destination: "",
+  startDate: null,
+  endDate: null,
+  budget: null,
+  currency: "KRW",
+  tags: [],
+  areas: ["시내", "리조트", "공항"],
+};
+
+export const CURRENCY_OPTIONS = [
+  { code: "KRW", symbol: "₩", label: "원" },
+  { code: "JPY", symbol: "¥", label: "엔" },
+  { code: "USD", symbol: "$", label: "달러" },
+  { code: "EUR", symbol: "€", label: "유로" },
+];
+
 // ── 카드 ──
 export interface Card {
   id: string;
@@ -41,6 +69,7 @@ export interface Card {
   recommendedDayIndex?: number[];
   recommendedSlot?: SlotType;
   estimatedMinutes?: number;
+  estimatedCost?: number;
   externalUrl?: string;
   requiresReservation?: boolean;
   reservationStatus?: "none" | "pending" | "confirmed";
@@ -80,10 +109,12 @@ export interface UIState {
   activeCardId: string | null;
   activeSlotKey: string | null;
   categoryFilter: string; // "all" | CardCategory
+  showTripPanel: boolean;
 }
 
 // ── 전체 상태 ──
 export interface PlannerState {
+  trip: TripMeta;
   days: TripDay[];
   cards: Card[];
   placements: Placement[];

@@ -1,15 +1,21 @@
 import type {
   PlannerState,
   TripDay,
+  TripMeta,
   Card,
   Placement,
   SlotType,
   Recommendation,
 } from "./types";
-import { makeSlotKey } from "./types";
+import { makeSlotKey, DEFAULT_TRIP_META } from "./types";
 
 // ── 액션 타입 ──
 export type PlannerAction =
+  | { type: "UPDATE_TRIP"; updates: Partial<TripMeta> }
+  | { type: "ADD_TRIP_AREA"; area: string }
+  | { type: "REMOVE_TRIP_AREA"; area: string }
+  | { type: "ADD_TRIP_TAG"; tag: string }
+  | { type: "REMOVE_TRIP_TAG"; tag: string }
   | { type: "ADD_DAY"; day: TripDay }
   | { type: "UPDATE_DAY"; dayId: string; updates: Partial<TripDay> }
   | { type: "REMOVE_DAY"; dayId: string }
@@ -26,6 +32,7 @@ export type PlannerAction =
   | { type: "LOAD"; state: PlannerState };
 
 export const initialState: PlannerState = {
+  trip: { ...DEFAULT_TRIP_META },
   days: [],
   cards: [],
   placements: [],
@@ -34,6 +41,7 @@ export const initialState: PlannerState = {
     activeCardId: null,
     activeSlotKey: null,
     categoryFilter: "all",
+    showTripPanel: false,
   },
 };
 
@@ -42,6 +50,43 @@ export function plannerReducer(
   action: PlannerAction
 ): PlannerState {
   switch (action.type) {
+    case "UPDATE_TRIP":
+      return { ...state, trip: { ...state.trip, ...action.updates } };
+
+    case "ADD_TRIP_AREA":
+      return {
+        ...state,
+        trip: {
+          ...state.trip,
+          areas: state.trip.areas.includes(action.area)
+            ? state.trip.areas
+            : [...state.trip.areas, action.area],
+        },
+      };
+
+    case "REMOVE_TRIP_AREA":
+      return {
+        ...state,
+        trip: { ...state.trip, areas: state.trip.areas.filter((a) => a !== action.area) },
+      };
+
+    case "ADD_TRIP_TAG":
+      return {
+        ...state,
+        trip: {
+          ...state.trip,
+          tags: state.trip.tags.includes(action.tag)
+            ? state.trip.tags
+            : [...state.trip.tags, action.tag],
+        },
+      };
+
+    case "REMOVE_TRIP_TAG":
+      return {
+        ...state,
+        trip: { ...state.trip, tags: state.trip.tags.filter((t) => t !== action.tag) },
+      };
+
     case "ADD_DAY":
       return { ...state, days: [...state.days, action.day] };
 
