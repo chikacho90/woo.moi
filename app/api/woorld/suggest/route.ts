@@ -26,7 +26,7 @@ Rules:
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "API key not configured" }, { status: 500 });
+    return NextResponse.json({ error: "API key not configured", hint: "Set GEMINI_API_KEY in Vercel env vars" }, { status: 500 });
   }
 
   const body = await req.json();
@@ -40,15 +40,17 @@ export async function POST(req: NextRequest) {
   if (budget) parts.push(`예산: ${budget}만원`);
   if (styles?.length) parts.push(`여행 스타일: ${styles.join(", ")}`);
 
+  const model = "gemini-2.5-flash";
+
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ parts: [{ text: parts.join("\n") }] }],
+          contents: [{ role: "user", parts: [{ text: parts.join("\n") }] }],
           generationConfig: {
             responseMimeType: "application/json",
             maxOutputTokens: 4096,
@@ -58,17 +60,26 @@ export async function POST(req: NextRequest) {
     );
 
     if (!response.ok) {
-      const err = await response.text().catch(() => "");
+      const errBody = await response.text().catch(() => "no body");
+      console.error(`Gemini API error ${response.status}:`, errBody);
       return NextResponse.json(
-        { error: `Gemini API error: ${response.status}`, detail: err },
+        { error: `Gemini API error: ${response.status}`, detail: errBody.slice(0, 500) },
         { status: 502 }
       );
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
 
-    // Gemini with responseMimeType=json returns clean JSON, but parse defensively
+    if (!data.candidates?.length) {
+      console.error("Gemini returned no candidates:", JSON.stringify(data).slice(0, 500));
+      return NextResponse.json(
+        { error: "Gemini returned empty response", detail: JSON.stringify(data).slice(0, 500) },
+        { status: 502 }
+      );
+    }
+
+    const text = data.candidates[0].content?.parts?.[0]?.text || "[]";
+
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
@@ -78,6 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ cards });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Suggest API catch:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
