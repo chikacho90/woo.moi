@@ -126,20 +126,6 @@ export default function WoorldPage() {
                 설정
               </button>
               <button
-                onClick={() => setDayModalOpen(true)}
-                className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
-                style={{ background: "rgba(255,255,255,0.08)", color: "#ccc" }}
-              >
-                + 날짜
-              </button>
-              <button
-                onClick={() => setCardModalOpen(true)}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{ background: "#fff", color: "#0a0a12" }}
-              >
-                + 카드
-              </button>
-              <button
                 onClick={handleReset}
                 className="px-2 py-1.5 rounded-lg text-xs transition-colors hidden sm:block"
                 style={{ color: "rgba(255,255,255,0.2)" }}
@@ -200,7 +186,7 @@ export default function WoorldPage() {
         <TripPanel state={state} dispatch={dispatch} />
 
         {/* Schedule Grid */}
-        <ScheduleGrid state={state} dispatch={dispatch} />
+        <ScheduleGrid state={state} dispatch={dispatch} onAddDay={() => setDayModalOpen(true)} />
 
         {/* Card Pool */}
         <div>
@@ -220,7 +206,7 @@ export default function WoorldPage() {
               </span>
             )}
           </div>
-          <CardPool state={state} dispatch={dispatch} />
+          <CardPool state={state} dispatch={dispatch} onAddCard={() => setCardModalOpen(true)} />
         </div>
       </div>
 

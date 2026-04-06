@@ -8,6 +8,7 @@ import CardChip from "./CardChip";
 interface Props {
   state: PlannerState;
   dispatch: React.Dispatch<PlannerAction>;
+  onAddCard?: () => void;
 }
 
 const FILTERS: { key: string; label: string }[] = [
@@ -20,7 +21,7 @@ const FILTERS: { key: string; label: string }[] = [
   { key: "errand", label: "기타" },
 ];
 
-export default function CardPool({ state, dispatch }: Props) {
+export default function CardPool({ state, dispatch, onAddCard }: Props) {
   const { cards, placements, ui, days } = state;
   const placedIds = new Set(placements.map((p) => p.cardId));
   const poolCards = cards.filter((c) => !placedIds.has(c.id));
@@ -111,8 +112,9 @@ export default function CardPool({ state, dispatch }: Props) {
 
       {/* Cards */}
       {filtered.length === 0 ? (
-        <div
-          className="flex items-center justify-center py-8 rounded-xl border-2 border-dashed"
+        <button
+          onClick={onAddCard}
+          className="w-full flex items-center justify-center py-8 rounded-xl border-2 border-dashed transition-colors hover:border-white/20 hover:bg-white/[0.02] cursor-pointer"
           style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.25)" }}
         >
           <div className="text-center">
@@ -123,7 +125,7 @@ export default function CardPool({ state, dispatch }: Props) {
                 : "이 카테고리에 카드가 없습니다"}
             </div>
           </div>
-        </div>
+        </button>
       ) : (
         <div className="flex gap-2 overflow-x-auto pb-2">
           {filtered.map((card) => (
@@ -149,6 +151,15 @@ export default function CardPool({ state, dispatch }: Props) {
               </button>
             </div>
           ))}
+          {/* Add card button */}
+          <button
+            onClick={onAddCard}
+            className="flex-shrink-0 w-[100px] h-[60px] rounded-xl border-2 border-dashed flex items-center justify-center transition-colors hover:border-white/20 hover:bg-white/[0.02]"
+            style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.2)" }}
+            title="카드 추가"
+          >
+            <span className="text-lg">+</span>
+          </button>
         </div>
       )}
     </div>

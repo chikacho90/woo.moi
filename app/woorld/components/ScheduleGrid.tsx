@@ -9,6 +9,7 @@ import CardChip from "./CardChip";
 interface Props {
   state: PlannerState;
   dispatch: React.Dispatch<PlannerAction>;
+  onAddDay?: () => void;
 }
 
 const SLOT_STYLES: Record<
@@ -35,7 +36,7 @@ const SLOT_STYLES: Record<
   active: { border: "2px solid rgba(24,95,165,0.7)", bg: "rgba(24,95,165,0.12)", text: "선택중", textColor: "#7eb8f0" },
 };
 
-export default function ScheduleGrid({ state, dispatch }: Props) {
+export default function ScheduleGrid({ state, dispatch, onAddDay }: Props) {
   const { days, cards, placements, ui } = state;
   const [hoverSlot, setHoverSlot] = useState<string | null>(null);
   const [activeActions, setActiveActions] = useState<string | null>(null);
@@ -190,15 +191,16 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
 
   if (days.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center py-20 rounded-xl border-2 border-dashed"
+      <button
+        onClick={onAddDay}
+        className="w-full flex items-center justify-center py-20 rounded-xl border-2 border-dashed transition-colors hover:border-white/20 hover:bg-white/[0.02] cursor-pointer"
         style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.3)" }}
       >
         <div className="text-center">
           <div className="text-3xl mb-2">📅</div>
           <div className="text-sm">날짜를 추가해서 시작하세요</div>
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -216,8 +218,8 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
       <div
         className="grid gap-0 schedule-grid-scroll"
         style={{
-          gridTemplateColumns: `48px repeat(${days.length}, minmax(140px, 1fr))`,
-          minWidth: `${48 + days.length * 140}px`,
+          gridTemplateColumns: `48px repeat(${days.length}, minmax(140px, 1fr)) 48px`,
+          minWidth: `${48 + days.length * 140 + 48}px`,
         }}
       >
         {/* Header row */}
@@ -333,6 +335,16 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
           </div>
         ))}
 
+        {/* Add day button (last header column) */}
+        <button
+          onClick={onAddDay}
+          className="flex items-center justify-center rounded-lg transition-colors hover:bg-white/[0.04]"
+          style={{ color: "rgba(255,255,255,0.2)" }}
+          title="날짜 추가"
+        >
+          <span className="text-lg">+</span>
+        </button>
+
         {/* Slot rows */}
         {SLOT_TYPES.map((slot) => (
           <Fragment key={slot}>
@@ -344,7 +356,7 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
               {slot}
             </div>
 
-            {/* Cells */}
+            {/* Day cells */}
             {days.map((day) => {
               const slotKey = makeSlotKey(day.id, slot);
               const cellPlacements = placements
@@ -406,6 +418,8 @@ export default function ScheduleGrid({ state, dispatch }: Props) {
                 </div>
               );
             })}
+            {/* Spacer for add-day column */}
+            <div />
           </Fragment>
         ))}
       </div>
