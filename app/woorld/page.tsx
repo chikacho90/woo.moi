@@ -6,7 +6,7 @@ import { CURRENCY_OPTIONS } from "./types";
 import ScheduleGrid from "./components/ScheduleGrid";
 import CardPool from "./components/CardPool";
 import TripPanel from "./components/TripPanel";
-import AddDayModal from "./components/AddDayModal";
+import DateRangePicker from "./components/DateRangePicker";
 import AddCardModal from "./components/AddCardModal";
 
 const STORAGE_KEY = "woorld-planner-state";
@@ -211,12 +211,22 @@ export default function WoorldPage() {
       </div>
 
       {/* Modals */}
-      <AddDayModal
+      <DateRangePicker
         open={dayModalOpen}
         onClose={() => setDayModalOpen(false)}
-        onAdd={(day) => dispatch({ type: "ADD_DAY", day })}
-        nextIndex={state.days.length}
-        areas={state.trip.areas}
+        onConfirm={(days) => {
+          dispatch({ type: "SET_DAYS", days });
+          if (days.length > 0) {
+            dispatch({
+              type: "UPDATE_TRIP",
+              updates: {
+                startDate: days[0].date,
+                endDate: days[days.length - 1].date,
+              },
+            });
+          }
+        }}
+        existingDays={state.days}
       />
       <AddCardModal
         open={cardModalOpen}

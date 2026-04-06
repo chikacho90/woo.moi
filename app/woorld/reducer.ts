@@ -17,6 +17,7 @@ export type PlannerAction =
   | { type: "ADD_TRIP_TAG"; tag: string }
   | { type: "REMOVE_TRIP_TAG"; tag: string }
   | { type: "ADD_DAY"; day: TripDay }
+  | { type: "SET_DAYS"; days: TripDay[] }
   | { type: "UPDATE_DAY"; dayId: string; updates: Partial<TripDay> }
   | { type: "REMOVE_DAY"; dayId: string }
   | { type: "ADD_CARD"; card: Card }
@@ -89,6 +90,25 @@ export function plannerReducer(
 
     case "ADD_DAY":
       return { ...state, days: [...state.days, action.day] };
+
+    case "SET_DAYS": {
+      // Keep placements for days that still exist
+      const newDayIds = new Set(action.days.map((d) => d.id));
+      const oldDayIds = new Set(state.days.map((d) => d.id));
+      const removedDayIds = [...oldDayIds].filter((id) => !newDayIds.has(id));
+      const slotsToRemove = new Set(
+        removedDayIds.flatMap((dayId) =>
+          (["오전", "점심", "오후", "저녁", "밤"] as SlotType[]).map((s) =>
+            makeSlotKey(dayId, s)
+          )
+        )
+      );
+      return {
+        ...state,
+        days: action.days,
+        placements: state.placements.filter((p) => !slotsToRemove.has(p.slotKey)),
+      };
+    }
 
     case "UPDATE_DAY":
       return {
