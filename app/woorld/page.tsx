@@ -32,10 +32,15 @@ function loadState(): PlannerState | null {
 }
 
 export default function WoorldPage() {
-  const [state, dispatch] = useReducer(plannerReducer, initialState, (init) => {
+  const [state, dispatch] = useReducer(plannerReducer, initialState);
+  const [mounted, setMounted] = useState(false);
+
+  // Hydrate from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
     const saved = loadState();
-    return saved ?? init;
-  });
+    if (saved) dispatch({ type: "LOAD", state: saved });
+    setMounted(true);
+  }, []);
 
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [cardModalOpen, setCardModalOpen] = useState(false);
@@ -62,7 +67,13 @@ export default function WoorldPage() {
           budget: state.trip.budget ? String(Math.round(state.trip.budget / 10000)) : undefined,
         }),
       });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const msg = errData?.error === "API key not configured"
+          ? "API 키 미설정 (Vercel 환경변수 확인)"
+          : `서버 오류 (${res.status})`;
+        throw new Error(msg);
+      }
       const data = await res.json();
       if (data.cards?.length) {
         // Add each suggested card with a unique ID

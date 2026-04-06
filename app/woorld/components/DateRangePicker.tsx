@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { TripDay } from "../types";
 import { DAY_COLORS } from "../types";
 
@@ -42,10 +42,10 @@ export default function DateRangePicker({ open, onClose, onConfirm, existingDays
   const [end, setEnd] = useState<Date | null>(null);
   const [hovering, setHovering] = useState<Date | null>(null);
 
-  // Pre-fill from existing days
-  const hasExisting = existingDays.length > 0 && existingDays[0].date;
-  useState(() => {
-    if (hasExisting) {
+  // Pre-fill from existing days when modal opens
+  useEffect(() => {
+    if (!open) return;
+    if (existingDays.length > 0 && existingDays[0].date) {
       const dates = existingDays
         .filter((d) => d.date)
         .map((d) => new Date(d.date!))
@@ -56,8 +56,11 @@ export default function DateRangePicker({ open, onClose, onConfirm, existingDays
         setViewYear(dates[0].getFullYear());
         setViewMonth(dates[0].getMonth());
       }
+    } else {
+      setStart(null);
+      setEnd(null);
     }
-  });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const calendarDays = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
