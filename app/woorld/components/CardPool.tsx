@@ -127,9 +127,9 @@ export default function CardPool({ state, dispatch, onAddCard }: Props) {
           </div>
         </button>
       ) : (
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2">
           {filtered.map((card) => (
-            <div key={card.id} className="flex-shrink-0 relative group">
+            <div key={card.id} className="relative group">
               <CardChip
                 card={card}
                 isPool
@@ -154,7 +154,7 @@ export default function CardPool({ state, dispatch, onAddCard }: Props) {
           {/* Add card button */}
           <button
             onClick={onAddCard}
-            className="flex-shrink-0 w-[100px] h-[60px] rounded-xl border-2 border-dashed flex items-center justify-center transition-colors hover:border-white/20 hover:bg-white/[0.02]"
+            className="w-[100px] h-[60px] rounded-xl border-2 border-dashed flex items-center justify-center transition-colors hover:border-white/20 hover:bg-white/[0.02]"
             style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.2)" }}
             title="카드 추가"
           >
