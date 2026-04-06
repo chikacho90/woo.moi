@@ -1,5 +1,5 @@
 "use client";
-import { useReducer, useEffect, useRef, useCallback, useState } from "react";
+import { useReducer, useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { plannerReducer, initialState } from "./reducer";
 import type { PlannerState } from "./types";
 import { CURRENCY_OPTIONS } from "./types";
@@ -39,6 +39,52 @@ export default function WoorldPage() {
 
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [cardModalOpen, setCardModalOpen] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const lastSuggestKey = useRef<string>("");
+
+  // Auto-suggest cards when destination changes (and optionally days)
+  const fetchSuggestions = useCallback(async (destination: string, dayCount?: number) => {
+    const key = `${destination}::${dayCount ?? ""}`;
+    if (key === lastSuggestKey.current) return;
+    lastSuggestKey.current = key;
+
+    setSuggesting(true);
+    setSuggestError(null);
+    try {
+      const res = await fetch("/api/woorld/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destination,
+          days: dayCount ?? 3,
+          styles: state.trip.tags.length > 0 ? state.trip.tags : undefined,
+          budget: state.trip.budget ? String(Math.round(state.trip.budget / 10000)) : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      if (data.cards?.length) {
+        // Add each suggested card with a unique ID
+        for (const card of data.cards) {
+          dispatch({
+            type: "ADD_CARD",
+            card: {
+              ...card,
+              id: crypto.randomUUID(),
+              compatibleSlots: card.compatibleSlots ?? ["오전", "점심", "오후", "저녁", "밤"],
+              compatibleAreas: card.compatibleAreas ?? ["any"],
+              tags: card.tags ?? [{ label: "AI 추천", color: "#a5b4fc", bg: "rgba(99,102,241,0.15)" }],
+            },
+          });
+        }
+      }
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : "추천 실패");
+    } finally {
+      setSuggesting(false);
+    }
+  }, [state.trip.tags, state.trip.budget, dispatch]);
 
   // Auto-save to localStorage (debounced)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,7 +229,14 @@ export default function WoorldPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
         {/* Trip Panel (collapsible) */}
-        <TripPanel state={state} dispatch={dispatch} />
+        <TripPanel
+          state={state}
+          dispatch={dispatch}
+          onDestinationConfirm={(dest) => {
+            const dayCount = state.days.length || undefined;
+            fetchSuggestions(dest, dayCount);
+          }}
+        />
 
         {/* Schedule Grid */}
         <ScheduleGrid state={state} dispatch={dispatch} onAddDay={() => setDayModalOpen(true)} />
@@ -206,6 +259,19 @@ export default function WoorldPage() {
               </span>
             )}
           </div>
+          {suggesting && (
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <div className="w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+              <span className="text-xs" style={{ color: "#a5b4fc" }}>
+                {state.trip.destination}의 추천 콘텐츠를 불러오는 중...
+              </span>
+            </div>
+          )}
+          {suggestError && (
+            <div className="text-xs mb-2 px-1" style={{ color: "rgba(239,68,68,0.7)" }}>
+              추천 실패: {suggestError}
+            </div>
+          )}
           <CardPool state={state} dispatch={dispatch} onAddCard={() => setCardModalOpen(true)} />
         </div>
       </div>
@@ -224,6 +290,10 @@ export default function WoorldPage() {
                 endDate: days[days.length - 1].date,
               },
             });
+            // Trigger suggestions if destination is set
+            if (state.trip.destination) {
+              fetchSuggestions(state.trip.destination, days.length);
+            }
           }
         }}
         existingDays={state.days}
