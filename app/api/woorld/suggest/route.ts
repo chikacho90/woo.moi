@@ -24,7 +24,7 @@ Rules:
 - Only return the JSON array, no markdown`;
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 500 });
   }
@@ -41,27 +41,34 @@ export async function POST(req: NextRequest) {
   if (styles?.length) parts.push(`여행 스타일: ${styles.join(", ")}`);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: parts.join("\n") }],
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ parts: [{ text: parts.join("\n") }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 4096,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
-      return NextResponse.json({ error: `API error: ${response.status}` }, { status: 502 });
+      const err = await response.text().catch(() => "");
+      return NextResponse.json(
+        { error: `Gemini API error: ${response.status}`, detail: err },
+        { status: 502 }
+      );
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || "[]";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+
+    // Gemini with responseMimeType=json returns clean JSON, but parse defensively
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });

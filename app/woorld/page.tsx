@@ -70,7 +70,7 @@ export default function WoorldPage() {
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
         const msg = errData?.error === "API key not configured"
-          ? "API 키 미설정 (Vercel 환경변수 확인)"
+          ? "API 키 미설정 (Vercel에 GEMINI_API_KEY 환경변수 추가)"
           : `서버 오류 (${res.status})`;
         throw new Error(msg);
       }
