@@ -165,9 +165,11 @@ type DragState = {
 function EditableTimeline({
   day,
   onChange,
+  onClear,
 }: {
   day: MergedDay;
   onChange: (ci: number, co: number) => void;
+  onClear: () => void;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -260,7 +262,7 @@ function EditableTimeline({
   return (
     <div
       ref={trackRef}
-      className="relative h-10 bg-gray-50 rounded-lg overflow-visible select-none touch-none"
+      className="group relative h-10 bg-white/5 rounded-lg overflow-visible select-none touch-none"
       onPointerDown={(e) => { if (!hasBar) beginDrag("create", e); }}
       onPointerMove={handleMove}
       onPointerUp={endDrag}
@@ -268,55 +270,59 @@ function EditableTimeline({
     >
       {/* hour marks */}
       {[3, 6, 9, 12, 15, 18, 21].map((h) => (
-        <div key={h} className="absolute top-0 bottom-0 border-l border-gray-200/60 pointer-events-none"
+        <div key={h} className="absolute top-0 bottom-0 border-l border-white/5 pointer-events-none"
           style={{ left: `${pct(h * 60)}%` }} />
       ))}
-      {/* hour labels */}
       {[6, 12, 18].map((h) => (
-        <div key={h} className="absolute top-0 text-[9px] text-gray-300 pointer-events-none"
+        <div key={h} className="absolute top-0 text-[9px] text-gray-500 pointer-events-none"
           style={{ left: `${pct(h * 60)}%`, transform: "translateX(2px)" }}>{h}</div>
       ))}
 
       {/* bar */}
       {hasBar && ciM != null && coM != null && (
         <div
-          className="absolute top-1 bottom-1 bg-sky-200 hover:bg-sky-300 rounded cursor-grab active:cursor-grabbing"
+          className="group/bar absolute top-1 bottom-1 bg-sky-500/60 hover:bg-sky-500/80 rounded cursor-grab active:cursor-grabbing"
           style={{ left: `${pct(ciM)}%`, width: `${Math.max(0.5, pct(coM) - pct(ciM))}%` }}
           onPointerDown={(e) => beginDrag("move", e)}
           onPointerMove={handleMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
-          {/* resize handles */}
           <div
-            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-sky-400/0 hover:bg-sky-500/30 rounded-l"
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-sky-300/40 rounded-l"
             onPointerDown={(e) => beginDrag("resizeStart", e)}
           />
           <div
-            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-sky-400/0 hover:bg-sky-500/30 rounded-r"
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-sky-300/40 rounded-r"
             onPointerDown={(e) => beginDrag("resizeEnd", e)}
           />
+          {/* hover X button */}
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            className="hidden group-hover/bar:flex absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-800 border border-gray-600 text-gray-200 hover:bg-red-500 hover:border-red-500 items-center justify-center text-[10px] z-10"
+            aria-label="계획 지우기"
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {/* now line */}
       {isToday && (
         <div className="absolute top-0 bottom-0 w-[2px] bg-red-500 pointer-events-none" style={{ left: `${pct(nowMin)}%` }} />
       )}
 
-      {/* clock labels */}
       {ciM != null && (
-        <div className="absolute text-[10px] font-mono text-sky-600 -translate-x-1/2 pointer-events-none"
+        <div className="absolute text-[10px] font-mono text-sky-400 -translate-x-1/2 pointer-events-none"
           style={{ left: `${pct(ciM)}%`, bottom: "-16px" }}>{fmtHM(ciM)}</div>
       )}
       {coM != null && (
-        <div className="absolute text-[10px] font-mono text-sky-600 -translate-x-1/2 pointer-events-none"
+        <div className="absolute text-[10px] font-mono text-sky-400 -translate-x-1/2 pointer-events-none"
           style={{ left: `${pct(coM)}%`, bottom: "-16px" }}>{fmtHM(coM)}</div>
       )}
 
-      {/* empty hint */}
       {!hasBar && (
-        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-600 pointer-events-none">
           드래그해서 계획 추가
         </div>
       )}
@@ -334,24 +340,24 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
   const endM = coM != null ? coM : day.ongoing ? nowMin : null;
 
   return (
-    <div className="relative h-10 bg-gray-50 rounded-lg overflow-visible">
+    <div className="relative h-10 bg-white/5 rounded-lg overflow-visible">
       {[3, 6, 9, 12, 15, 18, 21].map((h) => (
-        <div key={h} className="absolute top-0 bottom-0 border-l border-gray-200/60"
+        <div key={h} className="absolute top-0 bottom-0 border-l border-white/5"
           style={{ left: `${pct(h * 60)}%` }} />
       ))}
       {ciM != null && endM != null && (
-        <div className={`absolute top-1 bottom-1 rounded ${day.ongoing ? "bg-amber-300/70 animate-pulse" : "bg-amber-300"}`}
+        <div className={`absolute top-1 bottom-1 rounded ${day.ongoing ? "bg-amber-400/70 animate-pulse" : "bg-amber-400/80"}`}
           style={{ left: `${pct(ciM)}%`, width: `${Math.max(0.5, pct(endM) - pct(ciM))}%` }} />
       )}
       {isToday && (
         <div className="absolute top-0 bottom-0 w-[2px] bg-red-500" style={{ left: `${pct(nowMin)}%` }} />
       )}
       {ciM != null && (
-        <div className="absolute text-[10px] font-mono text-gray-500 -translate-x-1/2"
+        <div className="absolute text-[10px] font-mono text-gray-400 -translate-x-1/2"
           style={{ left: `${pct(ciM)}%`, bottom: "-16px" }}>{day.clockIn}</div>
       )}
       {coM != null && (
-        <div className="absolute text-[10px] font-mono text-gray-500 -translate-x-1/2"
+        <div className="absolute text-[10px] font-mono text-gray-400 -translate-x-1/2"
           style={{ left: `${pct(coM)}%`, bottom: "-16px" }}>{day.clockOut}</div>
       )}
     </div>
@@ -446,16 +452,16 @@ export default function WorktimePage() {
   const progressPct = Math.min(100, (finalizedTotals.recognized / WEEK_REQUIRED_MIN) * 100);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-neutral-950 text-gray-100">
       <div className="max-w-3xl mx-auto p-4 md:p-8">
         <div className="flex items-baseline justify-between mb-1">
           <h1 className="text-2xl font-bold tracking-tight">내 근무</h1>
-          <button onClick={refresh} className="text-xs text-gray-400 hover:text-gray-900">
+          <button onClick={refresh} className="text-xs text-gray-500 hover:text-gray-100">
             {loading ? "↻" : "새로고침"}
           </button>
         </div>
         {data && (
-          <div className="text-xs text-gray-400 mb-6">
+          <div className="text-xs text-gray-500 mb-6">
             {data.weekFrom.replaceAll("-", ".")} ~ {data.weekTo.slice(5).replaceAll("-", ".")}
             {" · "}
             {new Date(data.updatedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 업데이트
@@ -463,7 +469,7 @@ export default function WorktimePage() {
         )}
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm">
+          <div className="mb-4 p-3 bg-red-950/40 text-red-400 rounded-xl text-sm border border-red-900/50">
             불러오기 실패: {error}
             {error === "401" && (
               <div className="mt-1 text-xs">로그인이 필요합니다. <a href="/" className="underline">홈에서 로그인</a></div>
@@ -471,20 +477,19 @@ export default function WorktimePage() {
           </div>
         )}
 
-        {/* 진행률 (확정 기준) */}
         {data && (
           <div className="mb-8">
             <div className="flex items-baseline justify-between mb-2">
               <div className="text-3xl font-bold font-mono">{fmtDuration(finalizedTotals.recognized)}</div>
-              <div className="text-sm text-gray-400">확정 / {fmtDuration(WEEK_REQUIRED_MIN)}</div>
+              <div className="text-sm text-gray-500">확정 / {fmtDuration(WEEK_REQUIRED_MIN)}</div>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
               <div className="h-full bg-emerald-500 rounded-full transition-all"
                 style={{ width: `${progressPct}%` }} />
             </div>
-            <div className="flex justify-between text-xs text-gray-400">
+            <div className="flex justify-between text-xs text-gray-500">
               <span>남음 {fmtDuration(finalizedTotals.remaining)}</span>
-              <span className={finalizedTotals.accumulated >= 0 ? "text-emerald-600" : "text-orange-500"}>
+              <span className={finalizedTotals.accumulated >= 0 ? "text-emerald-400" : "text-orange-400"}>
                 적립 {finalizedTotals.accumulated >= 0 ? "+" : ""}{fmtDuration(finalizedTotals.accumulated)}
               </span>
             </div>
@@ -492,9 +497,9 @@ export default function WorktimePage() {
         )}
 
         {canLeave && (
-          <div className="mb-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-            <div className="text-xs text-emerald-700 mb-1">오늘 퇴근 가능</div>
-            <div className="text-3xl font-bold font-mono text-emerald-700">{canLeave.timeStr}</div>
+          <div className="mb-6 p-4 bg-emerald-950/40 rounded-2xl border border-emerald-900/50">
+            <div className="text-xs text-emerald-400 mb-1">오늘 퇴근 가능</div>
+            <div className="text-3xl font-bold font-mono text-emerald-300">{canLeave.timeStr}</div>
           </div>
         )}
 
@@ -511,42 +516,35 @@ export default function WorktimePage() {
             return (
               <div
                 key={d.date}
-                className={`rounded-2xl px-3 py-3 ${isToday ? "bg-emerald-50/40" : ""} ${dimClass}`}
+                className={`rounded-2xl px-3 pt-3 pb-6 ${isToday ? "bg-emerald-950/20" : ""} ${dimClass}`}
               >
                 <div className="flex items-center gap-3">
-                  {/* 왼쪽: 날짜 + 요일 */}
-                  <div className="w-14 shrink-0">
-                    <div className={`text-lg font-semibold leading-none ${isToday ? "text-emerald-600" : isWeekend ? "text-red-400" : "text-gray-900"}`}>
-                      {dateLabel(d.date)}
+                  {/* 왼쪽: 요일 + 날짜 (옆으로) */}
+                  <div className="w-14 shrink-0 flex items-baseline gap-1.5">
+                    <div className={`text-sm ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-500"}`}>
+                      {dow}
                     </div>
-                    <div className={`text-xs mt-1 ${isToday ? "text-emerald-600" : isWeekend ? "text-red-400" : "text-gray-400"}`}>
-                      {dow}요일
+                    <div className={`text-lg font-semibold ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-100"}`}>
+                      {dateLabel(d.date)}
                     </div>
                   </div>
 
                   {/* 가운데: 그래프 */}
-                  <div className="flex-1 pb-5">
+                  <div className="flex-1">
                     {isLocked ? (
                       <ReadonlyTimeline day={d} />
                     ) : (
                       <EditableTimeline
                         day={d}
                         onChange={(ci, co) => updatePlanByMin(d.date, ci, co)}
+                        onClear={() => clearPlan(d.date)}
                       />
                     )}
                   </div>
 
-                  {/* 오른쪽: 근무시간 */}
-                  <div className="w-14 shrink-0 text-right">
-                    <div className="text-sm font-mono text-gray-700">{fmtDuration(rec)}</div>
-                    {d.source === "plan" && (
-                      <button
-                        onClick={() => clearPlan(d.date)}
-                        className="text-[10px] text-gray-300 hover:text-red-500 mt-1"
-                      >
-                        지우기
-                      </button>
-                    )}
+                  {/* 오른쪽: 근무시간 (그래프 세로 중앙) */}
+                  <div className="w-14 shrink-0 text-right text-sm font-mono text-gray-300">
+                    {fmtDuration(rec)}
                   </div>
                 </div>
               </div>
