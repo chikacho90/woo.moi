@@ -388,7 +388,13 @@ export default function WorktimePage() {
     setPlansState(next);
   }
 
-  const dates = useMemo(() => data ? weekDates(data.weekFrom, data.weekTo) : [], [data]);
+  const dates = useMemo(() => {
+    if (!data) return [];
+    return weekDates(data.weekFrom, data.weekTo).filter((dt) => {
+      const dow = new Date(dt + "T00:00:00+09:00").getDay();
+      return dow >= 1 && dow <= 5;
+    });
+  }, [data]);
   const merged = useMemo(() => {
     if (!data) return [];
     const byDate = new Map(data.days.map((d) => [d.date, d]));
