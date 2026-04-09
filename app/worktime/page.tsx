@@ -36,8 +36,15 @@ const STORAGE_KEY = "worktime-plans";
 const WORK_CAP_MIN = 540;
 const DAILY_TARGET_MIN = 480;
 const WEEK_REQUIRED_MIN = 2400;
-const DEFAULT_REST_MIN = 60;
-const SNAP_MIN = 15;
+const REST_START = 12 * 60 + 30; // 12:30
+const REST_END = 13 * 60 + 30;   // 13:30
+const SNAP_MIN = 1;
+
+function restOverlap(ciMin: number, coMin: number): number {
+  const s = Math.max(ciMin, REST_START);
+  const e = Math.min(coMin, REST_END);
+  return Math.max(0, e - s);
+}
 const DOW_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
 function readPlans(): PlanStore {
@@ -109,8 +116,11 @@ function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: s
   const ciM = parseHM(ci);
   const coM = parseHM(co);
   let workMin = 0;
-  const restMin = ciM != null && coM != null ? DEFAULT_REST_MIN : 0;
-  if (ciM != null && coM != null) workMin = Math.max(0, coM - ciM - restMin);
+  let restMin = 0;
+  if (ciM != null && coM != null) {
+    restMin = restOverlap(ciM, coM);
+    workMin = Math.max(0, coM - ciM - restMin);
+  }
   return {
     date,
     weeklyHoliday: actual?.weeklyHoliday || false,
@@ -427,7 +437,10 @@ export default function WorktimePage() {
     const workCap = Math.min(needToday, WORK_CAP_MIN);
     const ciM = parseHM(today.clockIn);
     if (ciM == null) return null;
-    return { timeStr: fmtHM(ciM + workCap + (today.restMin || DEFAULT_REST_MIN)), needToday };
+    // 퇴근 가능 시각 = 출근 + 필요 근무 + 중간 휴게 (12:30~13:30 교차분)
+    const tentativeOut = ciM + workCap;
+    const rest = restOverlap(ciM, tentativeOut + 60); // 휴게가 낀다고 가정하고 보정
+    return { timeStr: fmtHM(ciM + workCap + rest), needToday };
   }, [merged, todayStr]);
 
   const progressPct = Math.min(100, (finalizedTotals.recognized / WEEK_REQUIRED_MIN) * 100);
@@ -498,36 +511,43 @@ export default function WorktimePage() {
             return (
               <div
                 key={d.date}
-                className={`rounded-2xl px-4 py-3 ${isToday ? "bg-emerald-50/40" : ""} ${dimClass}`}
+                className={`rounded-2xl px-3 py-3 ${isToday ? "bg-emerald-50/40" : ""} ${dimClass}`}
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-8 text-center font-semibold ${isToday ? "text-emerald-600" : isWeekend ? "text-red-400" : "text-gray-900"}`}>
-                    {dateLabel(d.date)}
+                <div className="flex items-center gap-3">
+                  {/* 왼쪽: 날짜 + 요일 */}
+                  <div className="w-14 shrink-0">
+                    <div className={`text-lg font-semibold leading-none ${isToday ? "text-emerald-600" : isWeekend ? "text-red-400" : "text-gray-900"}`}>
+                      {dateLabel(d.date)}
+                    </div>
+                    <div className={`text-xs mt-1 ${isToday ? "text-emerald-600" : isWeekend ? "text-red-400" : "text-gray-400"}`}>
+                      {dow}요일
+                    </div>
                   </div>
-                  <div className={`text-sm ${isToday ? "text-emerald-600 font-semibold" : isWeekend ? "text-red-400" : "text-gray-500"}`}>
-                    {dow}
+
+                  {/* 가운데: 그래프 */}
+                  <div className="flex-1 pb-5">
+                    {isLocked ? (
+                      <ReadonlyTimeline day={d} />
+                    ) : (
+                      <EditableTimeline
+                        day={d}
+                        onChange={(ci, co) => updatePlanByMin(d.date, ci, co)}
+                      />
+                    )}
                   </div>
-                  <div className="flex-1" />
-                  <div className="text-sm font-mono text-gray-700">{fmtDuration(rec)}</div>
-                  {d.source === "plan" && (
-                    <button
-                      onClick={() => clearPlan(d.date)}
-                      className="text-[11px] text-gray-300 hover:text-red-500 w-8 text-right"
-                    >
-                      지우기
-                    </button>
-                  )}
-                  {d.source !== "plan" && <div className="w-8" />}
-                </div>
-                <div className="pb-5">
-                  {isLocked ? (
-                    <ReadonlyTimeline day={d} />
-                  ) : (
-                    <EditableTimeline
-                      day={d}
-                      onChange={(ci, co) => updatePlanByMin(d.date, ci, co)}
-                    />
-                  )}
+
+                  {/* 오른쪽: 근무시간 */}
+                  <div className="w-14 shrink-0 text-right">
+                    <div className="text-sm font-mono text-gray-700">{fmtDuration(rec)}</div>
+                    {d.source === "plan" && (
+                      <button
+                        onClick={() => clearPlan(d.date)}
+                        className="text-[10px] text-gray-300 hover:text-red-500 mt-1"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
