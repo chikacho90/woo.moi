@@ -195,11 +195,11 @@ function EditableTimeline({ day, onChange, onClear }: {
   const hasBar = ciM != null && coM != null;
 
   return (
-    <div ref={trackRef} className="group relative h-10 select-none touch-none"
+    <div ref={trackRef} className="group relative h-8 select-none touch-none"
       onPointerDown={(e) => { if (!hasBar) beginDrag("create", e); }}
       onPointerMove={handleMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
       {hasBar && ciM != null && coM != null && (
-        <div className="group/bar absolute top-1 bottom-1 bg-sky-500/50 hover:bg-sky-500/70 rounded cursor-grab active:cursor-grabbing"
+        <div className="group/bar absolute top-0 bottom-0 bg-sky-500/50 hover:bg-sky-500/70 rounded cursor-grab active:cursor-grabbing"
           style={{ left: `${tlPct(ciM)}%`, width: `${Math.max(0.5, tlPct(coM) - tlPct(ciM))}%` }}
           onPointerDown={(e) => beginDrag("move", e)} onPointerMove={handleMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
           <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-sky-300/40 rounded-l" onPointerDown={(e) => beginDrag("resizeStart", e)} />
@@ -225,29 +225,25 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
   const hasOvertime = otStart != null && endM != null && endM > otStart;
 
   return (
-    <div className="relative h-10">
-      {/* 정상 근무 바 (amber) */}
+    <div className="relative h-8">
       {ciM != null && endM != null && (
-        <div className={`absolute top-1 bottom-1 rounded-l ${!hasOvertime ? "rounded-r" : ""} ${day.ongoing ? "bg-amber-400/60 animate-pulse" : "bg-amber-400/70"}`}
+        <div className={`absolute top-0 bottom-0 rounded-l ${!hasOvertime ? "rounded-r" : ""} ${day.ongoing ? "bg-amber-400/60 animate-pulse" : "bg-amber-400/70"}`}
           style={{ left: `${tlPct(ciM)}%`, width: `${Math.max(0.3, tlPct(hasOvertime ? otStart! : endM) - tlPct(ciM))}%` }} />
       )}
-      {/* 초과 근무 바 (red) */}
       {hasOvertime && otStart != null && endM != null && (
-        <div className={`absolute top-1 bottom-1 rounded-r bg-red-400/70 ${day.ongoing ? "animate-pulse" : ""}`}
+        <div className={`absolute top-0 bottom-0 rounded-r bg-red-400/70 ${day.ongoing ? "animate-pulse" : ""}`}
           style={{ left: `${tlPct(otStart)}%`, width: `${Math.max(0.3, tlPct(endM) - tlPct(otStart))}%` }} />
       )}
-      {/* 휴게 */}
       {day.restRanges?.map((r, i) => {
         const rs = parseHM(r.start), re = parseHM(r.end);
         if (rs == null || re == null) return null;
-        return <div key={`r${i}`} className="absolute top-1 bottom-1 bg-neutral-950/50 rounded"
+        return <div key={`r${i}`} className="absolute top-0 bottom-0 bg-neutral-950/50 rounded"
           style={{ left: `${tlPct(rs)}%`, width: `${Math.max(0.2, tlPct(re) - tlPct(rs))}%` }} />;
       })}
-      {/* 휴가 */}
       {day.timeOffRanges?.map((r, i) => {
         const ts = parseHM(r.start), te = parseHM(r.end);
         if (ts == null || te == null) return null;
-        return <div key={`t${i}`} className="absolute top-1 bottom-1 bg-violet-400/60 rounded"
+        return <div key={`t${i}`} className="absolute top-0 bottom-0 bg-violet-400/60 rounded"
           style={{ left: `${tlPct(ts)}%`, width: `${Math.max(0.3, tlPct(te) - tlPct(ts))}%` }} />;
       })}
     </div>
@@ -356,16 +352,16 @@ export default function WorktimePage() {
             {/* 시간 헤더 */}
             <div className="flex border-b border-white/10">
               <div className="w-[100px] shrink-0" />
-              <div className="relative h-7" style={{ width: `${TL_WIDTH}px` }}>
+              <div className="relative h-8" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
-                  <div key={h} className="absolute text-[10px] text-gray-600 -translate-x-1/2"
-                    style={{ left: `${tlPct(h * 60)}%`, top: "4px" }}>
+                  <div key={h} className="absolute text-[11px] text-gray-600 -translate-x-1/2"
+                    style={{ left: `${tlPct(h * 60)}%`, top: "6px" }}>
                     {h === 0 ? "0" : h === 12 ? <span className="text-gray-500">정오</span> : h === 24 ? "0" : h > 12 ? h - 12 : h}
                   </div>
                 ))}
                 {isCurrentWeek && nowMin >= TL_START && nowMin <= TL_END && (
-                  <div className="absolute text-[10px] font-mono text-red-400 -translate-x-1/2 font-bold"
-                    style={{ left: `${tlPct(nowMin)}%`, top: "4px" }}>
+                  <div className="absolute text-[11px] font-mono text-red-400 -translate-x-1/2 font-bold"
+                    style={{ left: `${tlPct(nowMin)}%`, top: "6px" }}>
                     {nowMin < 720 ? "오전" : "오후"} {fmtHM(nowMin)}
                   </div>
                 )}
@@ -400,27 +396,27 @@ export default function WorktimePage() {
               return (
                 <div key={dt} className={`flex border-b border-white/5 ${isToday ? "bg-emerald-950/15" : ""}`}>
                   {/* 왼쪽: 날짜 + 시간 (sticky) */}
-                  <div className="w-[100px] shrink-0 py-3 px-3 sticky left-0 bg-neutral-950/95 z-[5]">
+                  <div className="w-[100px] shrink-0 py-4 px-3 sticky left-0 bg-neutral-950/95 z-[5] flex flex-col justify-center">
                     <div className="flex items-baseline gap-1">
                       {isToday
-                        ? <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 text-xs font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
-                        : <span className={`text-base font-semibold ${isWeekend ? "text-red-400" : "text-gray-100"}`}>{dateLabel(dt)}</span>
+                        ? <span className="w-7 h-7 rounded-full bg-emerald-500 text-neutral-950 text-sm font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
+                        : <span className={`text-lg font-semibold ${isWeekend ? "text-red-400" : "text-gray-100"}`}>{dateLabel(dt)}</span>
                       }
-                      <span className={`text-xs ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-500"}`}>{dow}</span>
+                      <span className={`text-sm ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-500"}`}>{dow}</span>
                     </div>
-                    <div className="flex items-center gap-0.5 mt-0.5">
-                      <span className={`text-xs font-mono whitespace-nowrap ${isOvertime ? "text-red-400 font-bold" : rec > 0 ? "text-gray-300" : "text-gray-600"}`}>
+                    <div className="flex items-center gap-0.5 mt-1">
+                      <span className={`text-sm font-mono whitespace-nowrap ${isOvertime ? "text-red-400 font-bold" : rec > 0 ? "text-gray-300" : "text-gray-600"}`}>
                         {fmtDuration(rec)}
                       </span>
-                      {isOvertime && <span className="text-xs leading-none">🔥</span>}
+                      {isOvertime && <span className="text-sm leading-none">🔥</span>}
                     </div>
                   </div>
 
                   {/* 타임라인 */}
-                  <div className="relative" style={{ width: `${TL_WIDTH}px`, minHeight: "64px" }}>
+                  <div className="relative py-4" style={{ width: `${TL_WIDTH}px`, minHeight: "88px" }}>
                     {/* 격자 */}
                     {TL_HOURS.map((h) => (
-                      <div key={h} className={`absolute top-0 bottom-0 border-l ${h === 12 ? "border-white/10 border-dashed" : "border-white/[0.03]"}`}
+                      <div key={h} className={`absolute top-0 bottom-0 border-l ${h === 12 ? "border-white/10 border-dashed" : "border-white/[0.04]"}`}
                         style={{ left: `${tlPct(h * 60)}%` }} />
                     ))}
                     {/* 현재 시각 라인 */}
@@ -430,7 +426,7 @@ export default function WorktimePage() {
                     )}
 
                     {/* 바 영역 */}
-                    <div className="pt-2" style={{ height: "42px" }}>
+                    <div className="relative" style={{ height: "32px", marginTop: "8px" }}>
                       {finalized ? (
                         <ReadonlyTimeline day={actualMerged!} />
                       ) : (
@@ -441,7 +437,7 @@ export default function WorktimePage() {
                               onClear={() => clearPlan(dt)} />
                           </div>
                           {actualMerged && (
-                            <div className="absolute left-0 right-0 top-2 pointer-events-none" style={{ height: "42px" }}>
+                            <div className="absolute inset-0 pointer-events-none">
                               <ReadonlyTimeline day={actualMerged} />
                             </div>
                           )}
@@ -449,9 +445,9 @@ export default function WorktimePage() {
                       )}
                     </div>
 
-                    {/* 라벨: 출근, 휴게, 퇴근, 휴가 시간 */}
+                    {/* 라벨 */}
                     {hasActual && (
-                      <div className="relative text-[9px] text-gray-500 h-4" style={{ width: `${TL_WIDTH}px` }}>
+                      <div className="relative text-[10px] text-gray-500 mt-1 h-4">
                         {actualDay!.clockIn && (
                           <span className="absolute whitespace-nowrap"
                             style={{ left: `${tlPct(parseHM(actualDay!.clockIn)!)}%` }}>
@@ -462,8 +458,8 @@ export default function WorktimePage() {
                           </span>
                         )}
                         {actualDay!.clockOut && (
-                          <span className={`absolute whitespace-nowrap -translate-x-full ${ongoing ? "text-red-400" : ""}`}
-                            style={{ left: `${tlPct(parseHM(actualDay!.clockOut)!)}%` }}>
+                          <span className={`absolute whitespace-nowrap ${ongoing ? "text-red-400" : ""}`}
+                            style={{ left: `${tlPct(parseHM(actualDay!.clockOut)!)}%`, transform: "translateX(-100%)" }}>
                             {fmtAmPm(actualDay!.clockOut)}
                           </span>
                         )}
