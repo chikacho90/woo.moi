@@ -323,6 +323,17 @@ export default function WorktimePage() {
                             <EditableTimeline day={pm} onChange={(a, b) => updatePlan(dt, a, b)} onClear={() => clearPlan(dt)} />
                           </div>
                           {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} /></div>}
+                          {/* 오늘 + actual 없음 + plan 있음 → plan 시작~현재시각 진행중 바 */}
+                          {isT && !hasA && pm.clockIn && (() => {
+                            const pci = parseHM(pm.clockIn);
+                            if (pci == null || nowMin <= pci) return null;
+                            return <div className="absolute inset-0 pointer-events-none">
+                              <div className="relative h-full">
+                                <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse"
+                                  style={{ left: `${tlPct(pci)}%`, width: `${Math.max(0.3, tlPct(nowMin) - tlPct(pci))}%` }} />
+                              </div>
+                            </div>;
+                          })()}
                         </>
                       )}
                     </div>
