@@ -161,9 +161,9 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
         <div className={`absolute top-0 bottom-0 rounded ${day.ongoing ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
           style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.3, tlPct(end) - tlPct(ci))}%` }} />
       )}
-      {/* 초과 근무 — 노란 바 위 빨간 라인 (하단 4px) */}
+      {/* 초과 근무 — 노란 바 상단 빨간 라인 */}
       {hasOt && ot != null && end != null && (
-        <div className="absolute bottom-0 h-[4px] bg-red-400 rounded-b"
+        <div className="absolute top-0 h-[3px] bg-red-400 rounded-t"
           style={{ left: `${tlPct(ot)}%`, width: `${Math.max(0.2, tlPct(end) - tlPct(ot))}%` }} />
       )}
       {/* 휴게 */}
@@ -220,32 +220,34 @@ export default function WorktimePage() {
 
         {/* ─── Header ─── */}
         <div className="flex items-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
-          {/* Week selector pill */}
-          <div className="relative flex items-center gap-2">
-            <button onClick={() => setWeekOffset(weekOffset - 1)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">‹</button>
+          {/* Week selector */}
+          <div className="relative flex items-center gap-1">
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-xl">‹</button>
             <button onClick={(e) => { e.stopPropagation(); setCalOpen(!calOpen); }}
-              className="text-[13px] text-gray-700 border border-gray-200 rounded-full px-4 py-1.5 hover:bg-gray-50 font-medium min-w-[150px] text-center">
+              className="text-[13px] text-gray-700 border border-gray-200 rounded-full px-5 py-1.5 hover:bg-gray-50 font-medium min-w-[160px] text-center">
               {data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}
             </button>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">›</button>
+            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-xl">›</button>
             {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
           <button onClick={() => setWeekOffset(0)} className="ml-3 text-[13px] text-gray-500 hover:text-gray-800">오늘</button>
 
-          {/* Summary */}
+          {/* Summary — 큰 숫자 + 바 (마커 텍스트가 바 위에) */}
           {data && (
-            <div className="flex items-center gap-3 ml-auto">
-              <span className="text-[28px] font-bold font-mono text-gray-900 tracking-tight">{fmtDur(totals.rec)}</span>
-              <div className="w-24 relative">
-                <div className="h-[6px] bg-gray-100 rounded-full">
-                  <div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+            <div className="flex items-end gap-4 ml-auto">
+              <span className="text-3xl font-bold font-mono text-gray-900 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-2 text-[11px] font-mono text-gray-400">
+                  <span>-{fmtDur(totals.remT)}</span>
+                  <span className="text-gray-300">⚑</span>
+                  <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
                 </div>
-                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] font-mono text-gray-400">
-                <span>-{fmtDur(totals.remT)}</span>
-                <span className="text-gray-300">⚑</span>
-                <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
+                <div className="w-40 relative">
+                  <div className="h-[6px] bg-gray-100 rounded-full">
+                    <div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                  </div>
+                  <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
+                </div>
               </div>
             </div>
           )}
@@ -287,7 +289,7 @@ export default function WorktimePage() {
                 <div key={dt} className={`flex ${isT ? "bg-green-50/40" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
                   {/* Left — sticky with right shadow mask */}
                   <div className="w-[130px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5]"
-                    style={{ backgroundColor: isT ? "rgb(240 253 244 / 0.5)" : "white", boxShadow: "4px 0 8px -2px rgba(0,0,0,0.04)" }}>
+                    style={{ backgroundColor: isT ? "#f0fdf4" : "white", boxShadow: "6px 0 12px 0px rgba(0,0,0,0.06)" }}>
                     <div className="flex items-baseline gap-1 min-w-[40px]">
                       {isT
                         ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-[11px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
