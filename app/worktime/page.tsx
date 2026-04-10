@@ -500,7 +500,7 @@ export default function WorktimePage() {
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "-20px", transform: "translateX(-2px)" }}
               >
                 <span className="text-gray-500 text-xs">⚑</span>
-                <span className={`text-[10px] font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
+                <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
                   -{fmtDuration(weekTotals.remainTarget)}
                 </span>
               </div>
