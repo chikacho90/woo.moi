@@ -455,19 +455,6 @@ export default function WorktimePage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-gray-100">
       <div className="max-w-3xl mx-auto p-4 md:p-8">
-        <div className="flex items-baseline justify-between mb-1">
-          <h1 className="text-2xl font-bold tracking-tight">내 근무</h1>
-          <button onClick={refresh} className="text-xs text-gray-500 hover:text-gray-100">
-            {loading ? "↻" : "새로고침"}
-          </button>
-        </div>
-        {data && (
-          <div className="text-xs text-gray-500 mb-6">
-            {data.weekFrom.replaceAll("-", ".")} ~ {data.weekTo.slice(5).replaceAll("-", ".")}
-            {" · "}
-            {new Date(data.updatedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 업데이트
-          </div>
-        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-950/40 text-red-400 rounded-xl text-sm border border-red-900/50">
