@@ -340,6 +340,7 @@ export default function WorktimePage() {
                         }) : ad!.clockIn && <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
                         {ad!.clockOut && <span className={`absolute whitespace-nowrap ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                         {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
+                        {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
                       </div>
                     )}
                   </div>
