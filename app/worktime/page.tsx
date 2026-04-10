@@ -234,17 +234,17 @@ export default function WorktimePage() {
 
           {/* Summary — 큰 숫자 + 바 (마커 텍스트가 바 위에) */}
           {data && (
-            <div className="flex items-end gap-4 ml-auto">
-              <span className="text-2xl font-bold font-mono text-gray-900 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
-              <div className="flex flex-col items-end gap-0.5">
-                <div className="flex items-center gap-2 text-[11px] font-mono text-gray-400">
-                  <span>-{fmtDur(totals.remT)}</span>
-                  <span className="text-gray-300">⚑</span>
-                  <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
-                </div>
-                <div className="w-56 relative">
-                  <div className="h-[6px] bg-gray-100 rounded-full">
-                    <div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+            <div className="ml-auto">
+              <div className="flex items-center justify-end gap-1.5 mb-0.5 text-[11px] font-mono text-gray-400">
+                <span>-{fmtDur(totals.remT)}</span>
+                <span className="text-gray-300">⚑</span>
+                <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
+                <div className="w-48 relative">
+                  <div className="h-[7px] bg-gray-100 rounded-full">
+                    <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
                   </div>
                   <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
                 </div>
