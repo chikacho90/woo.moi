@@ -28,11 +28,11 @@ const REST_END = 13 * 60 + 30;
 const SNAP_MIN = 1;
 
 // 타임라인: 0시~24시 전체, 가로 스크롤
-const TL_START = 60; // 1:00
-const TL_END = 23 * 60; // 23:00
+const TL_START = 0;
+const TL_END = 24 * 60;
 const TL_RANGE = TL_END - TL_START;
-const TL_WIDTH = 1400; // px
-const TL_HOURS = Array.from({ length: 23 }, (_, i) => i + 1); // 1~23
+const TL_WIDTH = 1600; // px
+const TL_HOURS = Array.from({ length: 25 }, (_, i) => i); // 0~24
 
 function tlPct(min: number) {
   return Math.max(0, Math.min(100, ((min - TL_START) / TL_RANGE) * 100));
@@ -351,16 +351,16 @@ export default function WorktimePage() {
 
         {/* ─── Scrollable Timeline ─── */}
         <div ref={scrollRef} className="overflow-x-auto">
-          <div style={{ width: `${TL_WIDTH + 120}px`, minWidth: "100%" }}>
+          <div style={{ width: `${TL_WIDTH + 100}px`, minWidth: "100%" }}>
 
             {/* 시간 헤더 */}
-            <div className="flex sticky top-[53px] z-10 bg-neutral-950/95 backdrop-blur border-b border-white/10">
-              <div className="w-[120px] shrink-0" />
+            <div className="flex border-b border-white/10">
+              <div className="w-[100px] shrink-0" />
               <div className="relative h-7" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
                   <div key={h} className="absolute text-[10px] text-gray-600 -translate-x-1/2"
                     style={{ left: `${tlPct(h * 60)}%`, top: "4px" }}>
-                    {h === 12 ? <span className="text-gray-500">정오</span> : h > 12 ? h - 12 : h}
+                    {h === 0 ? "0" : h === 12 ? <span className="text-gray-500">정오</span> : h === 24 ? "0" : h > 12 ? h - 12 : h}
                   </div>
                 ))}
                 {isCurrentWeek && nowMin >= TL_START && nowMin <= TL_END && (
@@ -400,17 +400,20 @@ export default function WorktimePage() {
               return (
                 <div key={dt} className={`flex border-b border-white/5 ${isToday ? "bg-emerald-950/15" : ""}`}>
                   {/* 왼쪽: 날짜 + 시간 (sticky) */}
-                  <div className="w-[120px] shrink-0 py-3 px-3 flex items-center gap-2 sticky left-0 bg-neutral-950/95 z-[5]">
-                    <div className="flex items-center gap-1 min-w-[45px]">
+                  <div className="w-[100px] shrink-0 py-3 px-3 sticky left-0 bg-neutral-950/95 z-[5]">
+                    <div className="flex items-baseline gap-1">
                       {isToday
-                        ? <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 text-xs font-bold flex items-center justify-center">{dateLabel(dt)}</span>
-                        : <span className={`text-sm font-semibold ${isWeekend ? "text-red-400" : "text-gray-100"}`}>{dateLabel(dt)}</span>
+                        ? <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 text-xs font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
+                        : <span className={`text-base font-semibold ${isWeekend ? "text-red-400" : "text-gray-100"}`}>{dateLabel(dt)}</span>
                       }
                       <span className={`text-xs ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-500"}`}>{dow}</span>
                     </div>
-                    <span className={`text-xs font-mono ${isOvertime ? "text-red-400 font-bold" : rec > 0 ? "text-gray-300" : "text-gray-600"}`}>
-                      {fmtDuration(rec)}{isOvertime ? " 🔥" : ""}
-                    </span>
+                    <div className="flex items-center gap-0.5 mt-0.5">
+                      <span className={`text-xs font-mono whitespace-nowrap ${isOvertime ? "text-red-400 font-bold" : rec > 0 ? "text-gray-300" : "text-gray-600"}`}>
+                        {fmtDuration(rec)}
+                      </span>
+                      {isOvertime && <span className="text-xs leading-none">🔥</span>}
+                    </div>
                   </div>
 
                   {/* 타임라인 */}
