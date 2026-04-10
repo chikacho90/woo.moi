@@ -4,10 +4,15 @@ const FLEX_BASE = "https://flex.team/api/v3/time-tracking/users";
 
 export const dynamic = "force-dynamic";
 
-function getWeekRange(): { from: string; to: string; weekFrom: string; weekTo: string } {
-  const now = new Date();
-  const kstMs = now.getTime() + 9 * 3600_000 + now.getTimezoneOffset() * 60_000;
-  const kst = new Date(kstMs);
+function getWeekRange(weekOf?: string): { from: string; to: string; weekFrom: string; weekTo: string } {
+  let kst: Date;
+  if (weekOf) {
+    kst = new Date(weekOf + "T12:00:00+09:00");
+  } else {
+    const now = new Date();
+    const kstMs = now.getTime() + 9 * 3600_000 + now.getTimezoneOffset() * 60_000;
+    kst = new Date(kstMs);
+  }
   const day = kst.getUTCDay(); // 0=Sun
   const diffToMon = day === 0 ? -6 : 1 - day;
 
@@ -52,14 +57,17 @@ type FlexDateAttr = {
   dayOffs: { type: string }[];
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const weekOf = searchParams.get("weekOf") || undefined;
+
   const flexAid = process.env.FLEX_AID;
   const flexUserId = process.env.FLEX_USER_ID;
   if (!flexAid || !flexUserId) {
     return NextResponse.json({ error: "flex credentials not configured" }, { status: 500 });
   }
 
-  const { from, to, weekFrom, weekTo } = getWeekRange();
+  const { from, to, weekFrom, weekTo } = getWeekRange(weekOf);
   const params = `from=${from}&to=${to}&timezone=Asia%2FSeoul`;
   const headers: Record<string, string> = {
     accept: "application/json",
