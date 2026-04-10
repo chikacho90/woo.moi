@@ -36,6 +36,7 @@ const STORAGE_KEY = "worktime-plans";
 const WORK_CAP_MIN = 540;
 const DAILY_TARGET_MIN = 480;
 const WEEK_REQUIRED_MIN = 2400;
+const WEEK_MAX_MIN = 3360; // 56시간
 const REST_START = 12 * 60 + 30; // 12:30
 const REST_END = 13 * 60 + 30;   // 13:30
 const SNAP_MIN = 1;
@@ -424,39 +425,32 @@ export default function WorktimePage() {
     return dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt));
   }, [data, dates, plans, byDate]);
 
-  // 확정된 데이터만으로 통계 계산
-  const finalizedTotals = useMemo(() => {
+  // 실제 데이터 있는 모든 날 (확정 + 진행중) 통계
+  const weekTotals = useMemo(() => {
     let recognized = 0;
-    let finalizedDays = 0;
     for (const d of merged) {
-      if (isFinalized(d)) {
-        recognized += recognizedMin(d);
-        finalizedDays++;
-      }
+      if (d.source === "actual") recognized += recognizedMin(d);
     }
-    const remaining = Math.max(0, WEEK_REQUIRED_MIN - recognized);
-    const accumulated = recognized - DAILY_TARGET_MIN * finalizedDays;
-    return { recognized, remaining, accumulated, finalizedDays };
+    const remainTarget = Math.max(0, WEEK_REQUIRED_MIN - recognized);
+    const remainMax = Math.max(0, WEEK_MAX_MIN - recognized);
+    return { recognized, remainTarget, remainMax };
   }, [merged]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const canLeave = useMemo(() => {
     const today = merged.find((d) => d.date === todayStr);
     if (!today || !today.clockIn) return null;
-    // 오늘을 제외한 확정된 날들의 recognized + 오늘 휴가
+    // 오늘을 제외한 actual 날들의 recognized + 오늘 휴가
     let others = 0;
-    for (const d of merged) if (d.date !== todayStr && isFinalized(d)) others += recognizedMin(d);
+    for (const d of merged) if (d.date !== todayStr && d.source === "actual") others += recognizedMin(d);
     const needToday = Math.max(0, WEEK_REQUIRED_MIN - others - (today.timeOffMin || 0));
     const workCap = Math.min(needToday, WORK_CAP_MIN);
     const ciM = parseHM(today.clockIn);
     if (ciM == null) return null;
-    // 퇴근 가능 시각 = 출근 + 필요 근무 + 중간 휴게 (12:30~13:30 교차분)
     const tentativeOut = ciM + workCap;
-    const rest = restOverlap(ciM, tentativeOut + 60); // 휴게가 낀다고 가정하고 보정
+    const rest = restOverlap(ciM, tentativeOut + 60);
     return { timeStr: fmtHM(ciM + workCap + rest), needToday };
   }, [merged, todayStr]);
-
-  const progressPct = Math.min(100, (finalizedTotals.recognized / WEEK_REQUIRED_MIN) * 100);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-gray-100">
@@ -483,19 +477,32 @@ export default function WorktimePage() {
 
         {data && (
           <div className="mb-8">
-            <div className="flex items-baseline justify-between mb-2">
-              <div className="text-3xl font-bold font-mono">{fmtDuration(finalizedTotals.recognized)}</div>
-              <div className="text-sm text-gray-500">확정 / {fmtDuration(WEEK_REQUIRED_MIN)}</div>
+            {/* 상단: 현재 시간 + 목표/최대 잔여 */}
+            <div className="flex items-baseline gap-3 mb-3">
+              <div className="text-3xl font-bold font-mono">{fmtDuration(weekTotals.recognized)}</div>
+              <div className="flex items-center gap-3 ml-auto text-xs font-mono">
+                <span className={weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}>
+                  -{fmtDuration(weekTotals.remainTarget)}
+                </span>
+                <span className="text-gray-600">
+                  ⚑
+                </span>
+                <span className="text-gray-600">
+                  -{fmtDuration(weekTotals.remainMax)}
+                </span>
+              </div>
             </div>
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-              <div className="h-full bg-emerald-500 rounded-full transition-all"
-                style={{ width: `${progressPct}%` }} />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>남음 {fmtDuration(finalizedTotals.remaining)}</span>
-              <span className={finalizedTotals.accumulated >= 0 ? "text-emerald-400" : "text-orange-400"}>
-                적립 {finalizedTotals.accumulated >= 0 ? "+" : ""}{fmtDuration(finalizedTotals.accumulated)}
-              </span>
+            {/* 프로그레스 바: 전체 = 최대시간, 마커 = 목표시간 */}
+            <div className="relative h-2 bg-white/10 rounded-full">
+              <div
+                className="h-full bg-teal-400/70 rounded-full transition-all"
+                style={{ width: `${Math.min(100, (weekTotals.recognized / WEEK_MAX_MIN) * 100)}%` }}
+              />
+              {/* 목표(40h) 마커 */}
+              <div
+                className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-gray-500"
+                style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }}
+              />
             </div>
           </div>
         )}
