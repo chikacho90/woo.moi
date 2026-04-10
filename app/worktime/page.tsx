@@ -329,9 +329,17 @@ export default function WorktimePage() {
 
                     {hasA && (
                       <div className="relative text-[10px] text-gray-400 mt-0.5 h-4">
-                        {ad!.clockIn && <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
+                        {/* 각 근무 블록 시작 시간 (첫 블록에 휴게 건수 포함) */}
+                        {ad!.workRanges ? ad!.workRanges.map((wr, j) => {
+                          const ws = parseHM(wr.start);
+                          if (ws == null) return null;
+                          return <span key={`ws${j}`} className="absolute whitespace-nowrap" style={{ left: `${tlPct(ws)}%` }}>
+                            {fmtAmPm(wr.start)}
+                            {j === 0 && ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}
+                          </span>;
+                        }) : ad!.clockIn && <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
                         {ad!.clockOut && <span className={`absolute whitespace-nowrap ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
-                        {ad!.timeOffRanges?.map((r, j) => <span key={j} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
+                        {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
                       </div>
                     )}
                   </div>
