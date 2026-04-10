@@ -485,12 +485,12 @@ export default function WorktimePage() {
                 className="absolute flex items-baseline gap-1 pointer-events-none"
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, bottom: 0, transform: "translateX(-2px)" }}
               >
-                <span className="text-gray-500 text-sm leading-none">⚑</span>
-                <span className={`text-xs font-mono leading-none ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
+                <span className="text-gray-500 text-base leading-none">⚑</span>
+                <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
                   -{fmtDuration(weekTotals.remainTarget)}
                 </span>
               </div>
-              <div className="absolute right-0 bottom-0 text-xs font-mono text-gray-600 leading-none">
+              <div className="absolute right-0 text-xs font-mono text-gray-600" style={{ bottom: 0 }}>
                 -{fmtDuration(weekTotals.remainMax)}
               </div>
             </div>
