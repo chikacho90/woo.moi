@@ -485,7 +485,7 @@ export default function WorktimePage() {
                 className="absolute flex items-baseline gap-1 pointer-events-none"
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, bottom: 0, transform: "translateX(-2px)" }}
               >
-                <span className="text-gray-500 text-base leading-none">⚑</span>
+                <span className="text-gray-400 text-lg leading-none">⚑</span>
                 <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
                   -{fmtDuration(weekTotals.remainTarget)}
                 </span>
