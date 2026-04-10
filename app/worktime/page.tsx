@@ -138,8 +138,12 @@ function recognizedMin(d: MergedDay): number {
   return Math.min(d.workMin || 0, WORK_CAP_MIN) + (d.timeOffMin || 0);
 }
 // 확정된(finalized) 일: 실제 데이터가 있고 진행중이 아닌 날
+// 지난 날짜인데 ongoing으로 남아있으면 데이터 지연 → 확정 처리
 function isFinalized(d: MergedDay): boolean {
-  return d.source === "actual" && !d.ongoing;
+  if (d.source !== "actual") return false;
+  if (!d.ongoing) return true;
+  const today = new Date().toISOString().slice(0, 10);
+  return d.date < today;
 }
 
 function weekDates(from: string, to: string): string[] {
@@ -411,11 +415,14 @@ export default function WorktimePage() {
       return dow >= 1 && dow <= 5;
     });
   }, [data]);
+  const byDate = useMemo(() => {
+    if (!data) return new Map<string, DayRec>();
+    return new Map(data.days.map((d) => [d.date, d]));
+  }, [data]);
   const merged = useMemo(() => {
     if (!data) return [];
-    const byDate = new Map(data.days.map((d) => [d.date, d]));
     return dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt));
-  }, [data, dates, plans]);
+  }, [data, dates, plans, byDate]);
 
   // 확정된 데이터만으로 통계 계산
   const finalizedTotals = useMemo(() => {
@@ -471,9 +478,6 @@ export default function WorktimePage() {
         {error && (
           <div className="mb-4 p-3 bg-red-950/40 text-red-400 rounded-xl text-sm border border-red-900/50">
             불러오기 실패: {error}
-            {error === "401" && (
-              <div className="mt-1 text-xs">로그인이 필요합니다. <a href="/" className="underline">홈에서 로그인</a></div>
-            )}
           </div>
         )}
 
@@ -505,44 +509,78 @@ export default function WorktimePage() {
 
         {/* 날짜별 행 */}
         <div className="space-y-1">
-          {merged.map((d) => {
+          {dates.map((dt, i) => {
+            const d = merged[i];
+            if (!d) return null;
+            const actualDay = byDate.get(dt);
+            const planDay = plans[dt];
             const rec = recognizedMin(d);
-            const isToday = d.date === todayStr;
-            const dow = getDow(d.date);
+            const isToday = dt === todayStr;
+            const dow = getDow(dt);
             const isWeekend = dow === "토" || dow === "일";
-            const isLocked = d.source === "actual";
-            const dimClass = isLocked ? "opacity-50" : "";
+            const hasActual = actualDay?.hasActual || false;
+            const finalized = isFinalized(d);
+            const ongoing = hasActual && !finalized;
+
+            // 계획 레이어용 MergedDay (actual 무시)
+            const planMerged = mergeDay(undefined, planDay, dt);
+            // 실제 레이어용 MergedDay (ongoing 보정 포함)
+            const actualMerged: MergedDay | null = hasActual ? {
+              date: dt,
+              weeklyHoliday: actualDay!.weeklyHoliday || false,
+              clockIn: actualDay!.clockIn,
+              clockOut: actualDay!.clockOut,
+              workMin: actualDay!.workMin,
+              restMin: actualDay!.restMin,
+              timeOffMin: actualDay!.timeOffMin,
+              hasActual: true,
+              ongoing,
+              source: "actual",
+            } : null;
+
+            const dimClass = finalized ? "opacity-50" : "";
 
             return (
               <div
-                key={d.date}
+                key={dt}
                 className={`rounded-2xl px-3 pt-3 pb-6 ${isToday ? "bg-emerald-950/20" : ""} ${dimClass}`}
               >
                 <div className="flex items-center gap-3">
-                  {/* 왼쪽: 요일 + 날짜 (옆으로) */}
+                  {/* 왼쪽: 요일 + 날짜 */}
                   <div className="w-14 shrink-0 flex items-baseline gap-1.5">
                     <div className={`text-sm ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-500"}`}>
                       {dow}
                     </div>
                     <div className={`text-lg font-semibold ${isToday ? "text-emerald-400" : isWeekend ? "text-red-400" : "text-gray-100"}`}>
-                      {dateLabel(d.date)}
+                      {dateLabel(dt)}
                     </div>
                   </div>
 
-                  {/* 가운데: 그래프 */}
-                  <div className="flex-1">
-                    {isLocked ? (
-                      <ReadonlyTimeline day={d} />
+                  {/* 가운데: 계획 + 실제 레이어 */}
+                  <div className="flex-1 relative">
+                    {finalized ? (
+                      /* 확정일: 실제 타임라인만 */
+                      <ReadonlyTimeline day={actualMerged!} />
                     ) : (
-                      <EditableTimeline
-                        day={d}
-                        onChange={(ci, co) => updatePlanByMin(d.date, ci, co)}
-                        onClear={() => clearPlan(d.date)}
-                      />
+                      /* 미확정: 계획(base) + 실제(overlay) */
+                      <>
+                        <div className={hasActual ? "opacity-30" : ""}>
+                          <EditableTimeline
+                            day={planMerged}
+                            onChange={(ci, co) => updatePlanByMin(dt, ci, co)}
+                            onClear={() => clearPlan(dt)}
+                          />
+                        </div>
+                        {actualMerged && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <ReadonlyTimeline day={actualMerged} />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {/* 오른쪽: 근무시간 (그래프 세로 중앙) */}
+                  {/* 오른쪽: 근무시간 */}
                   <div className="w-14 shrink-0 text-right text-sm font-mono text-gray-300">
                     {fmtDuration(rec)}
                   </div>
