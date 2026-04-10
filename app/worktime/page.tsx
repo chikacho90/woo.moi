@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 
+type TimeRange = { start: string; end: string };
+
 type DayRec = {
   date: string;
   weeklyHoliday?: boolean;
@@ -12,6 +14,8 @@ type DayRec = {
   timeOffMin: number;
   hasActual: boolean;
   ongoing?: boolean;
+  restRanges?: TimeRange[];
+  timeOffRanges?: TimeRange[];
 };
 
 type WorktimeData = {
@@ -95,6 +99,8 @@ type MergedDay = {
   hasActual: boolean;
   ongoing?: boolean;
   source: "actual" | "plan" | "empty";
+  restRanges?: TimeRange[];
+  timeOffRanges?: TimeRange[];
 };
 
 function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: string): MergedDay {
@@ -110,6 +116,8 @@ function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: s
       hasActual: true,
       ongoing: actual.ongoing,
       source: "actual",
+      restRanges: actual.restRanges,
+      timeOffRanges: actual.timeOffRanges,
     };
   }
   const ci = plan?.clockIn || null;
@@ -350,13 +358,36 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
         <div key={h} className="absolute top-0 bottom-0 border-l border-white/5"
           style={{ left: `${pct(h * 60)}%` }} />
       ))}
+      {/* 근무 바 */}
       {ciM != null && endM != null && (
         <div className={`absolute top-1 bottom-1 rounded ${day.ongoing ? "bg-amber-400/70 animate-pulse" : "bg-amber-400/80"}`}
           style={{ left: `${pct(ciM)}%`, width: `${Math.max(0.5, pct(endM) - pct(ciM))}%` }} />
       )}
+      {/* 휴게 블록 (근무 바 위에 어둡게) */}
+      {day.restRanges?.map((r, i) => {
+        const rs = parseHM(r.start);
+        const re = parseHM(r.end);
+        if (rs == null || re == null) return null;
+        return (
+          <div key={`rest-${i}`} className="absolute top-1 bottom-1 bg-neutral-950/60 rounded"
+            style={{ left: `${pct(rs)}%`, width: `${Math.max(0.3, pct(re) - pct(rs))}%` }} />
+        );
+      })}
+      {/* 휴가 블록 */}
+      {day.timeOffRanges?.map((r, i) => {
+        const ts = parseHM(r.start);
+        const te = parseHM(r.end);
+        if (ts == null || te == null) return null;
+        return (
+          <div key={`off-${i}`} className="absolute top-1 bottom-1 bg-violet-400/70 rounded"
+            style={{ left: `${pct(ts)}%`, width: `${Math.max(0.3, pct(te) - pct(ts))}%` }} />
+        );
+      })}
+      {/* 현재 시각 */}
       {isToday && (
         <div className="absolute top-0 bottom-0 w-[2px] bg-red-500" style={{ left: `${pct(nowMin)}%` }} />
       )}
+      {/* 출퇴근 라벨 */}
       {ciM != null && (
         <div className="absolute text-[10px] font-mono text-gray-400 -translate-x-1/2"
           style={{ left: `${pct(ciM)}%`, bottom: "-16px" }}>{day.clockIn}</div>
@@ -532,6 +563,8 @@ export default function WorktimePage() {
               hasActual: true,
               ongoing,
               source: "actual",
+              restRanges: actualDay!.restRanges,
+              timeOffRanges: actualDay!.timeOffRanges,
             } : null;
 
             const dimClass = finalized ? "opacity-50" : "";
@@ -596,7 +629,9 @@ export default function WorktimePage() {
         </div>
 
         <div className="mt-6 flex gap-4 justify-center text-[10px] text-gray-400">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-300 rounded-sm" />실제</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-300 rounded-sm" />근무</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-400/30 rounded-sm" />휴게</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 bg-violet-400/70 rounded-sm" />휴가</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 bg-sky-200 rounded-sm" />계획</span>
           <span className="flex items-center gap-1"><span className="w-[2px] h-3 bg-red-500" />현재</span>
         </div>

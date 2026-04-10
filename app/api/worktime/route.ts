@@ -135,16 +135,26 @@ export async function GET() {
       }
     }
 
+    const restRanges: { start: string; end: string }[] = [];
     for (const rb of restBlocks) {
       const rs = rb.value.startTimestamp.timestamp;
       const re = rb.value.endTimestampExclusive?.timestamp;
-      if (re) restMin += Math.round((re - rs) / 60_000);
+      if (re) {
+        restMin += Math.round((re - rs) / 60_000);
+        restRanges.push({ start: tsToHM(rs), end: tsToHM(re) });
+      }
     }
 
     const workMin = Math.max(0, grossMin - restMin);
 
+    const timeOffRanges: { start: string; end: string }[] = [];
     for (const tb of timeOffBlocks) {
       dayTimeOff += tb.value.usedMinutes || 0;
+      const ts = tb.value.startTimestamp?.timestamp;
+      const te = tb.value.endTimestampExclusive?.timestamp;
+      if (ts && te) {
+        timeOffRanges.push({ start: tsToHM(ts), end: tsToHM(te) });
+      }
     }
 
     if (hasActual) actualMin += workMin;
@@ -160,6 +170,8 @@ export async function GET() {
       timeOffMin: dayTimeOff,
       hasActual,
       ...(ongoing && { ongoing: true }),
+      ...(restRanges.length > 0 && { restRanges }),
+      ...(timeOffRanges.length > 0 && { timeOffRanges }),
     });
   }
 
