@@ -477,19 +477,11 @@ export default function WorktimePage() {
 
         {data && (
           <div className="mb-8">
-            {/* 상단: 현재 시간 + 목표/최대 잔여 */}
+            {/* 상단: 현재 시간 + 최대 잔여 */}
             <div className="flex items-baseline gap-3 mb-3">
               <div className="text-3xl font-bold font-mono">{fmtDuration(weekTotals.recognized)}</div>
-              <div className="flex items-center gap-3 ml-auto text-xs font-mono">
-                <span className={weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}>
-                  -{fmtDuration(weekTotals.remainTarget)}
-                </span>
-                <span className="text-gray-600">
-                  ⚑
-                </span>
-                <span className="text-gray-600">
-                  -{fmtDuration(weekTotals.remainMax)}
-                </span>
+              <div className="text-xs font-mono text-gray-600 ml-auto">
+                -{fmtDuration(weekTotals.remainMax)}
               </div>
             </div>
             {/* 프로그레스 바: 전체 = 최대시간, 마커 = 목표시간 */}
@@ -498,11 +490,20 @@ export default function WorktimePage() {
                 className="h-full bg-teal-400/70 rounded-full transition-all"
                 style={{ width: `${Math.min(100, (weekTotals.recognized / WEEK_MAX_MIN) * 100)}%` }}
               />
-              {/* 목표(40h) 마커 */}
+              {/* 목표(40h) 마커 + 깃발 + 잔여시간 */}
               <div
                 className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-gray-500"
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }}
               />
+              <div
+                className="absolute flex items-center gap-1 pointer-events-none"
+                style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "-20px", transform: "translateX(-2px)" }}
+              >
+                <span className="text-gray-500 text-xs">⚑</span>
+                <span className={`text-[10px] font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
+                  -{fmtDuration(weekTotals.remainTarget)}
+                </span>
+              </div>
             </div>
           </div>
         )}
