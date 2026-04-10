@@ -26,7 +26,6 @@ const WEEK_MAX_MIN = 3120;
 const REST_START = 12 * 60 + 30;
 const REST_END = 13 * 60 + 30;
 const SNAP_MIN = 1;
-
 const TL_START = 0;
 const TL_END = 24 * 60;
 const TL_RANGE = TL_END - TL_START;
@@ -35,18 +34,18 @@ const TL_HOURS = Array.from({ length: 25 }, (_, i) => i);
 
 function tlPct(min: number) { return Math.max(0, Math.min(100, ((min - TL_START) / TL_RANGE) * 100)); }
 function tlPx(min: number) { return (tlPct(min) / 100) * TL_WIDTH; }
-function restOverlap(ciMin: number, coMin: number): number { return Math.max(0, Math.min(coMin, REST_END) - Math.max(ciMin, REST_START)); }
+function restOverlap(ci: number, co: number): number { return Math.max(0, Math.min(co, REST_END) - Math.max(ci, REST_START)); }
 const DOW_KO = ["일", "월", "화", "수", "목", "금", "토"];
 function readPlans(): PlanStore { if (typeof window === "undefined") return {}; try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; } }
 function writePlans(p: PlanStore) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
 function parseHM(s: string | null | undefined): number | null { if (!s) return null; const m = s.match(/^(\d{1,2}):(\d{2})$/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null; }
-function fmtHM(total: number | null): string { if (total == null) return ""; const h = Math.floor(total / 60) % 24, m = total % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
+function fmtHM(t: number | null): string { if (t == null) return ""; return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; }
 function fmtAmPm(hm: string): string { const m = parseHM(hm); if (m == null) return hm; const h = Math.floor(m / 60), min = m % 60; return `${h < 12 ? "오전" : "오후"} ${h === 0 ? 12 : h > 12 ? h - 12 : h}:${String(min).padStart(2, "0")}`; }
-function fmtDuration(total: number | null): string { if (total == null) return "-"; const sign = total < 0 ? "-" : ""; total = Math.abs(total); return `${sign}${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`; }
-function getDow(dateStr: string): string { return DOW_KO[new Date(dateStr + "T00:00:00+09:00").getDay()]; }
-function dateLabel(dateStr: string): string { return `${parseInt(dateStr.slice(8, 10), 10)}`; }
-function snap(min: number): number { return Math.round(min / SNAP_MIN) * SNAP_MIN; }
-function fmtWeekRange(from: string, to: string): string { const f = new Date(from + "T00:00:00+09:00"), t = new Date(to + "T00:00:00+09:00"); return `${f.getFullYear()}. ${f.getMonth() + 1}. ${f.getDate()} – ${t.getMonth() + 1}. ${t.getDate()}`; }
+function fmtDur(t: number | null): string { if (t == null) return "-"; const s = t < 0 ? "-" : ""; t = Math.abs(t); return `${s}${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }
+function getDow(d: string) { return DOW_KO[new Date(d + "T00:00:00+09:00").getDay()]; }
+function dateNum(d: string) { return parseInt(d.slice(8, 10), 10); }
+function snap(m: number) { return Math.round(m / SNAP_MIN) * SNAP_MIN; }
+function fmtWeekRange(f: string, t: string) { const a = new Date(f + "T00:00:00+09:00"), b = new Date(t + "T00:00:00+09:00"); return `${a.getFullYear()}. ${a.getMonth() + 1}. ${a.getDate()} – ${b.getMonth() + 1}. ${b.getDate()}`; }
 
 type MergedDay = {
   date: string; weeklyHoliday: boolean;
@@ -64,66 +63,118 @@ function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: s
   if (ciM != null && coM != null) { restMin = restOverlap(ciM, coM); workMin = Math.max(0, coM - ciM - restMin); }
   return { date, weeklyHoliday: actual?.weeklyHoliday || false, clockIn: ci, clockOut: co, workMin, restMin, timeOffMin: plan?.timeOffMin || 0, hasActual: false, source: plan && (ci || co || plan.timeOffMin) ? "plan" : "empty" };
 }
-function recognizedMin(d: MergedDay): number { return Math.min(d.workMin || 0, WORK_CAP_MIN) + (d.timeOffMin || 0); }
-function isFinalized(d: MergedDay): boolean { if (d.source !== "actual") return false; if (!d.ongoing) return true; return d.date < new Date().toISOString().slice(0, 10); }
-function weekDates(from: string, to: string): string[] { const out: string[] = []; const s = new Date(from + "T00:00:00+09:00"), e = new Date(to + "T00:00:00+09:00"); for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) out.push(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)); return out; }
-function overtimeStartMin(ciMin: number, restMin: number, timeOffMin: number): number { return ciMin + Math.max(0, DAILY_TARGET_MIN - timeOffMin) + restMin; }
+function recMin(d: MergedDay) { return Math.min(d.workMin || 0, WORK_CAP_MIN) + (d.timeOffMin || 0); }
+function isFinal(d: MergedDay) { if (d.source !== "actual") return false; if (!d.ongoing) return true; return d.date < new Date().toISOString().slice(0, 10); }
+function weekDates(f: string, t: string) { const out: string[] = []; const s = new Date(f + "T00:00:00+09:00"), e = new Date(t + "T00:00:00+09:00"); for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) out.push(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)); return out; }
+function otStartMin(ci: number, rest: number, off: number) { return ci + Math.max(0, DAILY_TARGET_MIN - off) + rest; }
+
+// ─── Calendar Popup ───
+function CalendarPopup({ weekFrom, onSelect, onClose }: { weekFrom: string; onSelect: (date: string) => void; onClose: () => void }) {
+  const base = new Date(weekFrom + "T00:00:00+09:00");
+  const [year, setYear] = useState(base.getFullYear());
+  const [month, setMonth] = useState(base.getMonth());
+  const today = new Date().toISOString().slice(0, 10);
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const wfDate = new Date(weekFrom + "T00:00:00+09:00");
+  const weDate = new Date(wfDate); weDate.setDate(wfDate.getDate() + 6);
+
+  function isInWeek(d: number) {
+    const date = new Date(year, month, d);
+    return date >= wfDate && date <= weDate;
+  }
+  function isToday(d: number) {
+    const s = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    return s === today;
+  }
+
+  return (
+    <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 w-[280px]" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-gray-800">{year}년 {month + 1}월</span>
+        <div className="flex gap-1">
+          <button onClick={() => { if (month === 0) { setYear(year - 1); setMonth(11); } else setMonth(month - 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-sm">‹</button>
+          <button onClick={() => { if (month === 11) { setYear(year + 1); setMonth(0); } else setMonth(month + 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-sm">›</button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1">
+        {["일", "월", "화", "수", "목", "금", "토"].map((d) => <div key={d} className="text-center py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((d, i) => d ? (
+          <button key={i} onClick={() => { const s = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`; onSelect(s); onClose(); }}
+            className={`text-xs py-1.5 text-center rounded-md transition-colors
+              ${isToday(d) ? "bg-green-500 text-white font-bold" : isInWeek(d) ? "bg-green-100 text-green-800" : "text-gray-700 hover:bg-gray-100"}
+              ${i % 7 === 0 ? "text-red-400" : ""}`}>
+            {d}
+          </button>
+        ) : <div key={i} />)}
+      </div>
+    </div>
+  );
+}
 
 // ─── Editable Timeline ───
 type DragMode = "move" | "resizeStart" | "resizeEnd" | "create" | null;
 type DragState = { mode: DragMode; startX: number; origCi: number; origCo: number; barEl: HTMLElement | null };
 
 function EditableTimeline({ day, onChange, onClear }: { day: MergedDay; onChange: (ci: number, co: number) => void; onClear: () => void }) {
-  const trackRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
-  const [tempCi, setTempCi] = useState<number | null>(null);
-  const [tempCo, setTempCo] = useState<number | null>(null);
-  const ciM = tempCi ?? parseHM(day.clockIn), coM = tempCo ?? parseHM(day.clockOut);
-  const xToMin = useCallback((clientX: number): number => { const el = trackRef.current; if (!el) return 0; const r = el.getBoundingClientRect(); return snap(TL_START + (Math.max(0, Math.min(r.width, clientX - r.left)) / r.width) * TL_RANGE); }, []);
-  function beginDrag(mode: DragMode, e: React.PointerEvent) { e.stopPropagation(); e.preventDefault(); const el = e.currentTarget as HTMLElement; el.setPointerCapture(e.pointerId); let origCi = ciM ?? 600, origCo = coM ?? 1140; if (mode === "create") { const t = xToMin(e.clientX); origCi = t; origCo = Math.min(TL_END, t + 540); setTempCi(origCi); setTempCo(origCo); } setDrag({ mode, startX: e.clientX, origCi, origCo, barEl: el }); }
-  function handleMove(e: React.PointerEvent) { if (!drag) return; const dx = e.clientX - drag.startX, trackW = trackRef.current?.getBoundingClientRect().width || 1, deltaMin = snap((dx / trackW) * TL_RANGE); if (drag.mode === "move" || drag.mode === "create") { let ci = drag.origCi + (drag.mode === "move" ? deltaMin : 0), co = drag.origCo + (drag.mode === "move" ? deltaMin : 0); if (drag.mode === "create") { const now = xToMin(e.clientX); if (now >= drag.origCi) { ci = drag.origCi; co = Math.max(ci + SNAP_MIN, now); } else { ci = now; co = drag.origCi; } } if (drag.mode === "move") { const dur = drag.origCo - drag.origCi; if (ci < TL_START) { ci = TL_START; co = TL_START + dur; } if (co > TL_END) { co = TL_END; ci = co - dur; } } setTempCi(ci); setTempCo(co); } else if (drag.mode === "resizeStart") { setTempCi(Math.max(TL_START, Math.min(drag.origCo - SNAP_MIN, drag.origCi + deltaMin))); setTempCo(drag.origCo); } else if (drag.mode === "resizeEnd") { setTempCi(drag.origCi); setTempCo(Math.max(drag.origCi + SNAP_MIN, Math.min(TL_END, drag.origCo + deltaMin))); } }
-  function endDrag(e: React.PointerEvent) { if (!drag) return; if (drag.barEl) try { drag.barEl.releasePointerCapture(e.pointerId); } catch {} if (tempCi != null && tempCo != null) onChange(tempCi, tempCo); setDrag(null); setTimeout(() => { setTempCi(null); setTempCo(null); }, 50); }
-  const hasBar = ciM != null && coM != null;
+  const [tCi, setTCi] = useState<number | null>(null);
+  const [tCo, setTCo] = useState<number | null>(null);
+  const ci = tCi ?? parseHM(day.clockIn), co = tCo ?? parseHM(day.clockOut);
+  const x2m = useCallback((x: number) => { const el = ref.current; if (!el) return 0; const r = el.getBoundingClientRect(); return snap(TL_START + (Math.max(0, Math.min(r.width, x - r.left)) / r.width) * TL_RANGE); }, []);
+  function start(mode: DragMode, e: React.PointerEvent) { e.stopPropagation(); e.preventDefault(); const el = e.currentTarget as HTMLElement; el.setPointerCapture(e.pointerId); let oci = ci ?? 600, oco = co ?? 1140; if (mode === "create") { const t = x2m(e.clientX); oci = t; oco = Math.min(TL_END, t + 540); setTCi(oci); setTCo(oco); } setDrag({ mode, startX: e.clientX, origCi: oci, origCo: oco, barEl: el }); }
+  function move(e: React.PointerEvent) { if (!drag) return; const dx = e.clientX - drag.startX, w = ref.current?.getBoundingClientRect().width || 1, dm = snap((dx / w) * TL_RANGE); if (drag.mode === "move" || drag.mode === "create") { let a = drag.origCi + (drag.mode === "move" ? dm : 0), b = drag.origCo + (drag.mode === "move" ? dm : 0); if (drag.mode === "create") { const n = x2m(e.clientX); if (n >= drag.origCi) { a = drag.origCi; b = Math.max(a + 1, n); } else { a = n; b = drag.origCi; } } if (drag.mode === "move") { const d = drag.origCo - drag.origCi; if (a < 0) { a = 0; b = d; } if (b > TL_END) { b = TL_END; a = b - d; } } setTCi(a); setTCo(b); } else if (drag.mode === "resizeStart") { setTCi(Math.max(0, Math.min(drag.origCo - 1, drag.origCi + dm))); setTCo(drag.origCo); } else if (drag.mode === "resizeEnd") { setTCi(drag.origCi); setTCo(Math.max(drag.origCi + 1, Math.min(TL_END, drag.origCo + dm))); } }
+  function end(e: React.PointerEvent) { if (!drag) return; if (drag.barEl) try { drag.barEl.releasePointerCapture(e.pointerId); } catch {} if (tCi != null && tCo != null) onChange(tCi, tCo); setDrag(null); setTimeout(() => { setTCi(null); setTCo(null); }, 50); }
+  const has = ci != null && co != null;
   return (
-    <div ref={trackRef} className="group relative h-full select-none touch-none" onPointerDown={(e) => { if (!hasBar) beginDrag("create", e); }} onPointerMove={handleMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-      {hasBar && ciM != null && coM != null && (
-        <div className="group/bar absolute top-0 bottom-0 bg-blue-400/60 hover:bg-blue-400/80 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ciM)}%`, width: `${Math.max(0.5, tlPct(coM) - tlPct(ciM))}%` }} onPointerDown={(e) => beginDrag("move", e)} onPointerMove={handleMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-          <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-300/40 rounded-l" onPointerDown={(e) => beginDrag("resizeStart", e)} />
-          <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-300/40 rounded-r" onPointerDown={(e) => beginDrag("resizeEnd", e)} />
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/bar:flex absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-300 text-gray-500 hover:bg-red-500 hover:border-red-500 hover:text-white items-center justify-center text-[10px] z-10">✕</button>
+    <div ref={ref} className="group relative h-full select-none touch-none" onPointerDown={(e) => { if (!has) start("create", e); }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+      {has && ci != null && co != null && (
+        <div className="group/b absolute top-0 bottom-0 bg-blue-300/50 hover:bg-blue-300/70 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+          <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l" onPointerDown={(e) => start("resizeStart", e)} />
+          <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r" onPointerDown={(e) => start("resizeEnd", e)} />
+          <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/b:flex absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white border border-gray-300 text-gray-400 hover:bg-red-500 hover:text-white items-center justify-center text-[9px] z-10">✕</button>
         </div>
       )}
-      {!hasBar && <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none">드래그해서 계획</div>}
+      {!has && <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 pointer-events-none">드래그해서 계획</div>}
     </div>
   );
 }
 
 // ─── Readonly Timeline ───
 function ReadonlyTimeline({ day }: { day: MergedDay }) {
-  const ciM = parseHM(day.clockIn), coM = parseHM(day.clockOut);
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const endM = coM != null ? coM : day.ongoing ? nowMin : null;
-  const otStart = ciM != null ? overtimeStartMin(ciM, day.restMin, day.timeOffMin) : null;
-  const hasOvertime = otStart != null && endM != null && endM > otStart;
+  const ci = parseHM(day.clockIn), co = parseHM(day.clockOut);
+  const now = new Date().getHours() * 60 + new Date().getMinutes();
+  const end = co != null ? co : day.ongoing ? now : null;
+  const ot = ci != null ? otStartMin(ci, day.restMin, day.timeOffMin) : null;
+  const hasOt = ot != null && end != null && end > ot;
   return (
     <div className="relative h-full">
-      {ciM != null && endM != null && (
-        <div className={`absolute top-0 bottom-0 rounded-l ${!hasOvertime ? "rounded-r" : ""} ${day.ongoing ? "bg-amber-300 animate-pulse" : "bg-amber-300"}`}
-          style={{ left: `${tlPct(ciM)}%`, width: `${Math.max(0.3, tlPct(hasOvertime ? otStart! : endM) - tlPct(ciM))}%` }} />
+      {/* 전체 근무 바 (amber) */}
+      {ci != null && end != null && (
+        <div className={`absolute top-0 bottom-0 rounded ${day.ongoing ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
+          style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.3, tlPct(end) - tlPct(ci))}%` }} />
       )}
-      {hasOvertime && otStart != null && endM != null && (
-        <div className={`absolute top-0 bottom-0 rounded-r bg-red-400 ${day.ongoing ? "animate-pulse" : ""}`}
-          style={{ left: `${tlPct(otStart)}%`, width: `${Math.max(0.3, tlPct(endM) - tlPct(otStart))}%` }} />
+      {/* 초과 근무 — 노란 바 위 빨간 라인 (하단 4px) */}
+      {hasOt && ot != null && end != null && (
+        <div className="absolute bottom-0 h-[4px] bg-red-400 rounded-b"
+          style={{ left: `${tlPct(ot)}%`, width: `${Math.max(0.2, tlPct(end) - tlPct(ot))}%` }} />
       )}
+      {/* 휴게 */}
       {day.restRanges?.map((r, i) => {
-        const rs = parseHM(r.start), re = parseHM(r.end);
-        if (rs == null || re == null) return null;
-        return <div key={`r${i}`} className="absolute top-0 bottom-0 bg-white/50 rounded" style={{ left: `${tlPct(rs)}%`, width: `${Math.max(0.2, tlPct(re) - tlPct(rs))}%` }} />;
+        const s = parseHM(r.start), e = parseHM(r.end);
+        return s != null && e != null ? <div key={`r${i}`} className="absolute top-0 bottom-0 bg-white/50 rounded" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.2, tlPct(e) - tlPct(s))}%` }} /> : null;
       })}
+      {/* 휴가 */}
       {day.timeOffRanges?.map((r, i) => {
-        const ts = parseHM(r.start), te = parseHM(r.end);
-        if (ts == null || te == null) return null;
-        return <div key={`t${i}`} className="absolute top-0 bottom-0 bg-purple-300 rounded" style={{ left: `${tlPct(ts)}%`, width: `${Math.max(0.3, tlPct(te) - tlPct(ts))}%` }} />;
+        const s = parseHM(r.start), e = parseHM(r.end);
+        return s != null && e != null ? <div key={`t${i}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.3, tlPct(e) - tlPct(s))}%` }} /> : null;
       })}
     </div>
   );
@@ -136,6 +187,7 @@ export default function WorktimePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [calOpen, setCalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekOfDate = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + weekOffset * 7); return d.toISOString().slice(0, 10); }, [weekOffset]);
@@ -143,146 +195,133 @@ export default function WorktimePage() {
   useEffect(() => { setPlansState(readPlans()); refresh(); const id = setInterval(refresh, 60_000); return () => clearInterval(id); }, [refresh]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollLeft = tlPx(8 * 60); }, [data]);
 
-  function updatePlanByMin(date: string, ciMin: number, coMin: number) { const next = { ...plans, [date]: { ...(plans[date] || {}), clockIn: fmtHM(ciMin), clockOut: fmtHM(coMin) } }; writePlans(next); setPlansState(next); }
-  function clearPlan(date: string) { const next = { ...plans }; delete next[date]; writePlans(next); setPlansState(next); }
+  function goToDate(dateStr: string) {
+    const target = new Date(dateStr + "T00:00:00+09:00");
+    const now = new Date();
+    const diff = Math.round((target.getTime() - now.getTime()) / (7 * 86400000));
+    setWeekOffset(diff);
+  }
+
+  function updatePlan(date: string, ci: number, co: number) { const n = { ...plans, [date]: { ...(plans[date] || {}), clockIn: fmtHM(ci), clockOut: fmtHM(co) } }; writePlans(n); setPlansState(n); }
+  function clearPlan(date: string) { const n = { ...plans }; delete n[date]; writePlans(n); setPlansState(n); }
 
   const dates = useMemo(() => data ? weekDates(data.weekFrom, data.weekTo) : [], [data]);
   const byDate = useMemo(() => data ? new Map(data.days.map((d) => [d.date, d])) : new Map<string, DayRec>(), [data]);
   const merged = useMemo(() => data ? dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt)) : [], [data, dates, plans, byDate]);
-  const weekTotals = useMemo(() => { let r = 0; for (const d of merged) if (d.source === "actual") r += recognizedMin(d); return { recognized: r, remainTarget: Math.max(0, WEEK_REQUIRED_MIN - r), remainMax: Math.max(0, WEEK_MAX_MIN - r) }; }, [merged]);
+  const totals = useMemo(() => { let r = 0; for (const d of merged) if (d.source === "actual") r += recMin(d); return { rec: r, remT: Math.max(0, WEEK_REQUIRED_MIN - r), remM: Math.max(0, WEEK_MAX_MIN - r) }; }, [merged]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const isCurrentWeek = weekOffset === 0;
+  const isCur = weekOffset === 0;
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-white text-gray-900" onClick={() => calOpen && setCalOpen(false)}>
       <div className="max-w-[100vw] mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center gap-3 px-3 py-2 flex-wrap sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-200">
-          <div className="flex items-center gap-1">
-            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-lg">‹</button>
-            <span className="text-sm font-medium text-gray-800 min-w-[110px] text-center">{data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}</span>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-lg">›</button>
+        {/* ─── Header ─── */}
+        <div className="flex items-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
+          {/* Week selector pill */}
+          <div className="relative flex items-center gap-2">
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">‹</button>
+            <button onClick={(e) => { e.stopPropagation(); setCalOpen(!calOpen); }}
+              className="text-[13px] text-gray-700 border border-gray-200 rounded-full px-4 py-1.5 hover:bg-gray-50 font-medium min-w-[150px] text-center">
+              {data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}
+            </button>
+            <button onClick={() => setWeekOffset(weekOffset + 1)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">›</button>
+            {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
-          {!isCurrentWeek && <button onClick={() => setWeekOffset(0)} className="text-xs text-gray-500 hover:text-gray-900">오늘</button>}
+          <button onClick={() => setWeekOffset(0)} className="ml-3 text-[13px] text-gray-500 hover:text-gray-800">오늘</button>
+
+          {/* Summary */}
           {data && (
             <div className="flex items-center gap-3 ml-auto">
-              <span className="text-2xl font-bold font-mono text-gray-900">{fmtDuration(weekTotals.recognized)}</span>
-              <div className="w-28 relative">
-                <div className="h-2 bg-gray-200 rounded-full"><div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (weekTotals.recognized / WEEK_MAX_MIN) * 100)}%` }} /></div>
-                <div className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-gray-400" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
+              <span className="text-[28px] font-bold font-mono text-gray-900 tracking-tight">{fmtDur(totals.rec)}</span>
+              <div className="w-24 relative">
+                <div className="h-[6px] bg-gray-100 rounded-full">
+                  <div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                </div>
+                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
               </div>
-              <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
-                <span>-{fmtDuration(weekTotals.remainTarget)}</span>
-                <span className="text-gray-400">⚑</span>
-                <span className="text-gray-400">-{fmtDuration(weekTotals.remainMax)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-gray-400">
+                <span>-{fmtDur(totals.remT)}</span>
+                <span className="text-gray-300">⚑</span>
+                <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
               </div>
             </div>
           )}
         </div>
 
-        {error && <div className="mx-5 my-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-200">불러오기 실패: {error}</div>}
+        {error && <div className="mx-4 my-2 p-2 bg-red-50 text-red-500 rounded text-xs border border-red-100">{error}</div>}
 
-        {/* Scrollable Timeline */}
+        {/* ─── Timeline ─── */}
         <div ref={scrollRef} className="overflow-x-auto">
-          <div style={{ width: `${TL_WIDTH + 110}px`, minWidth: "100%" }}>
+          <div style={{ width: `${TL_WIDTH + 130}px`, minWidth: "100%" }}>
 
             {/* Hour header */}
-            <div className="flex border-b border-gray-100">
-              <div className="w-[110px] shrink-0" />
-              <div className="relative h-7" style={{ width: `${TL_WIDTH}px` }}>
+            <div className="flex">
+              <div className="w-[130px] shrink-0" />
+              <div className="relative h-6 border-b border-gray-100" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
-                  <div key={h} className="absolute text-[10px] text-gray-400 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, top: "6px" }}>
-                    {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-500">정오<br/><span className="text-[10px]">12</span></span> : h > 12 ? h - 12 : h}
+                  <div key={h} className="absolute text-[10px] text-gray-300 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
+                    {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-400">정오<br/><span className="text-[9px]">12</span></span> : h > 12 ? h - 12 : h}
                   </div>
                 ))}
-                {isCurrentWeek && (
-                  <div className="absolute text-[10px] font-mono text-red-500 -translate-x-1/2 font-bold" style={{ left: `${tlPct(nowMin)}%`, top: "6px" }}>
-                    {nowMin < 720 ? "오전" : "오후"} {fmtHM(nowMin)}
-                  </div>
-                )}
+                {isCur && <div className="absolute text-[10px] font-mono text-red-400 -translate-x-1/2 font-semibold" style={{ left: `${tlPct(nowMin)}%`, bottom: "2px" }}>{nowMin < 720 ? "오전" : "오후"} {fmtHM(nowMin)}</div>}
               </div>
             </div>
 
             {/* Day rows */}
             {dates.map((dt, i) => {
-              const d = merged[i];
-              if (!d) return null;
-              const actualDay = byDate.get(dt);
-              const planDay = plans[dt];
-              const rec = recognizedMin(d);
-              const isToday = dt === todayStr;
-              const dow = getDow(dt);
-              const dayIdx = new Date(dt + "T00:00:00+09:00").getDay();
-              const isWeekend = dayIdx === 0 || dayIdx === 6;
-              const hasActual = actualDay?.hasActual || false;
-              const finalized = isFinalized(d);
-              const ongoing = hasActual && !finalized;
-              const isOvertime = rec > DAILY_TARGET_MIN;
-
-              const planMerged = mergeDay(undefined, planDay, dt);
-              const actualMerged: MergedDay | null = hasActual ? { date: dt, weeklyHoliday: actualDay!.weeklyHoliday || false, clockIn: actualDay!.clockIn, clockOut: actualDay!.clockOut, workMin: actualDay!.workMin, restMin: actualDay!.restMin, timeOffMin: actualDay!.timeOffMin, hasActual: true, ongoing, source: "actual", restRanges: actualDay!.restRanges, timeOffRanges: actualDay!.timeOffRanges } : null;
+              const d = merged[i]; if (!d) return null;
+              const ad = byDate.get(dt), pd = plans[dt];
+              const rec = recMin(d);
+              const isT = dt === todayStr, dow = getDow(dt);
+              const di = new Date(dt + "T00:00:00+09:00").getDay();
+              const isWe = di === 0 || di === 6;
+              const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
+              const isOt = rec > DAILY_TARGET_MIN;
+              const pm = mergeDay(undefined, pd, dt);
+              const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
 
               return (
-                <div key={dt} className={`flex border-b border-gray-50 ${isToday ? "bg-green-50/50" : ""}`}>
-                  {/* Left panel */}
-                  <div className="w-[110px] shrink-0 py-3 px-3 sticky left-0 z-[5] flex items-center gap-2" style={{ backgroundColor: isToday ? "rgb(240 253 244 / 0.6)" : "white" }}>
-                    <div className="flex items-baseline gap-0.5 shrink-0">
-                      {isToday
-                        ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
-                        : <span className={`text-base font-medium ${isWeekend ? "text-red-400" : "text-gray-800"}`}>{dateLabel(dt)}</span>
-                      }
-                      <span className={`text-xs ${isToday ? "text-green-600" : isWeekend ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
+                <div key={dt} className={`flex ${isT ? "bg-green-50/40" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  {/* Left — sticky with right shadow mask */}
+                  <div className="w-[130px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5]"
+                    style={{ backgroundColor: isT ? "rgb(240 253 244 / 0.5)" : "white", boxShadow: "4px 0 8px -2px rgba(0,0,0,0.04)" }}>
+                    <div className="flex items-baseline gap-1 min-w-[40px]">
+                      {isT
+                        ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-[11px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
+                        : <span className={`text-[15px] font-medium ${isWe ? "text-red-400" : "text-gray-800"}`}>{dateNum(dt)}</span>}
+                      <span className={`text-[12px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
                     </div>
-                    <span className={`text-xs font-mono whitespace-nowrap px-1 py-0.5 rounded ${isOvertime ? "bg-red-100 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "bg-gray-50 text-gray-400 border border-gray-200"}`}>
-                      {fmtDuration(rec)}{isOvertime ? " 🔥" : ""}
+                    <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "border border-gray-200 text-gray-400"}`}>
+                      {fmtDur(rec)}{isOt ? " 🔥" : ""}
                     </span>
                   </div>
 
-                  {/* Timeline */}
-                  <div className="relative py-2" style={{ width: `${TL_WIDTH}px`, minHeight: "60px" }}>
+                  {/* Timeline area */}
+                  <div className="relative py-3" style={{ width: `${TL_WIDTH}px`, minHeight: "68px" }}>
                     {TL_HOURS.map((h) => (
-                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-gray-200 border-dashed" : "border-l border-gray-50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
+                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
                     ))}
-                    {isCurrentWeek && (
-                      <div className="absolute top-0 bottom-0 w-[2px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />
-                    )}
+                    {isCur && <div className="absolute top-0 bottom-0 w-[1.5px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />}
 
-                    {/* Bars */}
-                    <div className="relative" style={{ height: "28px", marginTop: "2px" }}>
-                      {finalized ? (
-                        <ReadonlyTimeline day={actualMerged!} />
-                      ) : (
+                    <div className="relative" style={{ height: "30px", marginTop: "2px" }}>
+                      {fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
-                          <div className={hasActual ? "opacity-30 h-full" : "h-full"}>
-                            <EditableTimeline day={planMerged} onChange={(ci, co) => updatePlanByMin(dt, ci, co)} onClear={() => clearPlan(dt)} />
+                          <div className={hasA ? "opacity-25 h-full" : "h-full"}>
+                            <EditableTimeline day={pm} onChange={(a, b) => updatePlan(dt, a, b)} onClear={() => clearPlan(dt)} />
                           </div>
-                          {actualMerged && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={actualMerged} /></div>}
+                          {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} /></div>}
                         </>
                       )}
                     </div>
 
-                    {/* Labels */}
-                    {hasActual && (
-                      <div className="relative text-[10px] text-gray-500 mt-1 h-4">
-                        {actualDay!.clockIn && (
-                          <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(actualDay!.clockIn)!)}%` }}>
-                            {fmtAmPm(actualDay!.clockIn)}
-                            {actualDay!.restRanges && actualDay!.restRanges.length > 0 && <span className="text-gray-400 ml-1">휴게 {actualDay!.restRanges.length}건</span>}
-                          </span>
-                        )}
-                        {actualDay!.clockOut && (
-                          <span className={`absolute whitespace-nowrap ${ongoing ? "text-red-500 font-semibold" : ""}`} style={{ left: `${tlPct(parseHM(actualDay!.clockOut)!)}%`, transform: "translateX(-100%)" }}>
-                            {fmtAmPm(actualDay!.clockOut)}
-                          </span>
-                        )}
-                        {actualDay!.timeOffRanges?.map((r, j) => (
-                          <span key={j} className="absolute whitespace-nowrap text-purple-500" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>
-                            {fmtAmPm(r.start)}
-                          </span>
-                        ))}
+                    {hasA && (
+                      <div className="relative text-[10px] text-gray-400 mt-0.5 h-4">
+                        {ad!.clockIn && <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
+                        {ad!.clockOut && <span className={`absolute whitespace-nowrap ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                        {ad!.timeOffRanges?.map((r, j) => <span key={j} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
                       </div>
                     )}
                   </div>
@@ -293,15 +332,14 @@ export default function WorktimePage() {
         </div>
 
         {/* Legend */}
-        <div className="px-5 py-4 flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-100">
+        <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
           <div className="flex gap-3">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-amber-300 rounded-sm" />근무</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-400 rounded-sm" />초과</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-purple-300 rounded-sm" />휴가</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-blue-400/60 rounded-sm" />계획</span>
-            <span className="flex items-center gap-1"><span className="w-[2px] h-2.5 bg-red-400" />현재</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full" />초과</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-300 rounded-full" />휴가</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-300/50 rounded-full" />계획</span>
           </div>
-          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-400 hover:text-red-500">계획 리셋</button>
+          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 hover:text-red-400">계획 리셋</button>
         </div>
       </div>
     </div>
