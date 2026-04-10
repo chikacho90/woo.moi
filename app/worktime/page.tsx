@@ -477,10 +477,20 @@ export default function WorktimePage() {
 
         {data && (
           <div className="mb-8">
-            {/* 상단: 현재 시간 + 최대 잔여 */}
-            <div className="flex items-baseline gap-3 mb-3">
-              <div className="text-3xl font-bold font-mono">{fmtDuration(weekTotals.recognized)}</div>
-              <div className="text-xs font-mono text-gray-600 ml-auto">
+            {/* 상단: 현재 시간 */}
+            <div className="text-3xl font-bold font-mono mb-3">{fmtDuration(weekTotals.recognized)}</div>
+            {/* 바 위 라벨: 깃발(목표) + 최대 잔여 */}
+            <div className="relative h-4 mb-1">
+              <div
+                className="absolute flex items-center gap-1 pointer-events-none"
+                style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, bottom: 0, transform: "translateX(-2px)" }}
+              >
+                <span className="text-gray-500 text-xs">⚑</span>
+                <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
+                  -{fmtDuration(weekTotals.remainTarget)}
+                </span>
+              </div>
+              <div className="absolute right-0 bottom-0 text-xs font-mono text-gray-600">
                 -{fmtDuration(weekTotals.remainMax)}
               </div>
             </div>
@@ -490,20 +500,11 @@ export default function WorktimePage() {
                 className="h-full bg-teal-400/70 rounded-full transition-all"
                 style={{ width: `${Math.min(100, (weekTotals.recognized / WEEK_MAX_MIN) * 100)}%` }}
               />
-              {/* 목표(40h) 마커 + 깃발 + 잔여시간 */}
+              {/* 목표(40h) 마커 라인 */}
               <div
                 className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-gray-500"
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }}
               />
-              <div
-                className="absolute flex items-center gap-1 pointer-events-none"
-                style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "-20px", transform: "translateX(-2px)" }}
-              >
-                <span className="text-gray-500 text-xs">⚑</span>
-                <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
-                  -{fmtDuration(weekTotals.remainTarget)}
-                </span>
-              </div>
             </div>
           </div>
         )}
