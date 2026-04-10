@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 
 type TimeRange = { start: string; end: string };
+type WorkRange = { start: string; end: string; remote: boolean };
 type DayRec = {
   date: string; weeklyHoliday?: boolean;
   clockIn: string | null; clockOut: string | null;
   workMin: number; restMin: number; timeOffMin: number;
   hasActual: boolean; ongoing?: boolean;
+  workRanges?: WorkRange[];
   restRanges?: TimeRange[]; timeOffRanges?: TimeRange[];
 };
 type WorktimeData = {
@@ -53,11 +55,12 @@ type MergedDay = {
   workMin: number; restMin: number; timeOffMin: number;
   hasActual: boolean; ongoing?: boolean;
   source: "actual" | "plan" | "empty";
+  workRanges?: WorkRange[];
   restRanges?: TimeRange[]; timeOffRanges?: TimeRange[];
 };
 
 function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: string): MergedDay {
-  if (actual && actual.hasActual) return { date, weeklyHoliday: actual.weeklyHoliday || false, clockIn: actual.clockIn, clockOut: actual.clockOut, workMin: actual.workMin, restMin: actual.restMin, timeOffMin: actual.timeOffMin, hasActual: true, ongoing: actual.ongoing, source: "actual", restRanges: actual.restRanges, timeOffRanges: actual.timeOffRanges };
+  if (actual && actual.hasActual) return { date, weeklyHoliday: actual.weeklyHoliday || false, clockIn: actual.clockIn, clockOut: actual.clockOut, workMin: actual.workMin, restMin: actual.restMin, timeOffMin: actual.timeOffMin, hasActual: true, ongoing: actual.ongoing, source: "actual", workRanges: actual.workRanges, restRanges: actual.restRanges, timeOffRanges: actual.timeOffRanges };
   const ci = plan?.clockIn || null, co = plan?.clockOut || null, ciM = parseHM(ci), coM = parseHM(co);
   let workMin = 0, restMin = 0;
   if (ciM != null && coM != null) { restMin = restOverlap(ciM, coM); workMin = Math.max(0, coM - ciM - restMin); }
@@ -156,8 +159,13 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
   const hasOt = ot != null && end != null && end > ot;
   return (
     <div className="relative h-full">
-      {/* 전체 근무 바 (amber) */}
-      {ci != null && end != null && (
+      {/* 개별 근무 블록 — 외근: 핑크, 사무실: amber */}
+      {day.workRanges && day.workRanges.length > 0 ? day.workRanges.map((wr, i) => {
+        const ws = parseHM(wr.start), we = parseHM(wr.end);
+        if (ws == null || we == null) return null;
+        return <div key={`w${i}`} className={`absolute top-0 bottom-0 rounded ${wr.remote ? "bg-pink-300" : day.ongoing ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
+          style={{ left: `${tlPct(ws)}%`, width: `${Math.max(0.3, tlPct(we) - tlPct(ws))}%` }} />;
+      }) : ci != null && end != null && (
         <div className={`absolute top-0 bottom-0 rounded ${day.ongoing ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
           style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.3, tlPct(end) - tlPct(ci))}%` }} />
       )}
@@ -283,7 +291,7 @@ export default function WorktimePage() {
               const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
               const isOt = rec > DAILY_TARGET_MIN;
               const pm = mergeDay(undefined, pd, dt);
-              const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
+              const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", workRanges: ad!.workRanges, restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
 
               return (
                 <div key={dt} className={`flex ${isT ? "bg-green-50/40" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
@@ -337,6 +345,7 @@ export default function WorktimePage() {
         <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
           <div className="flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full" />초과</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-300 rounded-full" />휴가</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-300/50 rounded-full" />계획</span>

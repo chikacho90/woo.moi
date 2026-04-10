@@ -28,6 +28,8 @@ function getWeekRange(weekOf?: string): { from: string; to: string; weekFrom: st
   return { from: fmt(satBefore), to: fmt(sunday), weekFrom: fmt(monday), weekTo: fmt(sunday) };
 }
 
+function fmtOngoing(): string { return fmtCurrentHM(); }
+function fmtCurrentHM(): string { const n = new Date(); const h = n.getUTCHours() + 9; const m = n.getUTCMinutes(); return `${String(h >= 24 ? h - 24 : h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
 function tsToHM(ts: number): string {
   const d = new Date(ts);
   const h = d.getUTCHours() + 9; // KST
@@ -42,6 +44,7 @@ type FlexTimeBlock = {
     startTimestamp: { timestamp: number };
     endTimestampExclusive?: { timestamp: number } | null;
     usedMinutes?: number;
+    workFormId?: string;
   };
 };
 
@@ -127,19 +130,33 @@ export async function GET(request: Request) {
     let hasActual = false;
     let ongoing = false;
 
+    const workRanges: { start: string; end: string; remote: boolean }[] = [];
     if (workBlocks.length > 0) {
       hasActual = true;
-      const wb = workBlocks[0];
-      const ciTs = wb.value.startTimestamp.timestamp;
-      clockIn = tsToHM(ciTs);
+      // 전체 출퇴근 시간: 첫 블록의 시작 ~ 마지막 블록의 끝
+      const firstTs = workBlocks[0].value.startTimestamp.timestamp;
+      clockIn = tsToHM(firstTs);
 
-      const coTs = wb.value.endTimestampExclusive?.timestamp;
-      if (coTs) {
-        clockOut = tsToHM(coTs);
-        grossMin = Math.round((coTs - ciTs) / 60_000);
+      const lastBlock = workBlocks[workBlocks.length - 1];
+      const lastEndTs = lastBlock.value.endTimestampExclusive?.timestamp;
+      if (lastEndTs) {
+        clockOut = tsToHM(lastEndTs);
+        grossMin = Math.round((lastEndTs - firstTs) / 60_000);
       } else {
         ongoing = true;
-        grossMin = Math.round((Date.now() - ciTs) / 60_000);
+        grossMin = Math.round((Date.now() - firstTs) / 60_000);
+      }
+
+      // 개별 근무 블록 (외근 구분)
+      for (const wb of workBlocks) {
+        const s = wb.value.startTimestamp.timestamp;
+        const e = wb.value.endTimestampExclusive?.timestamp;
+        const isRemote = wb.value.workFormId !== "409273";
+        workRanges.push({
+          start: tsToHM(s),
+          end: e ? tsToHM(e) : fmtOngoing(),
+          remote: isRemote,
+        });
       }
     }
 
@@ -178,6 +195,7 @@ export async function GET(request: Request) {
       timeOffMin: dayTimeOff,
       hasActual,
       ...(ongoing && { ongoing: true }),
+      ...(workRanges.length > 0 && { workRanges }),
       ...(restRanges.length > 0 && { restRanges }),
       ...(timeOffRanges.length > 0 && { timeOffRanges }),
     });
