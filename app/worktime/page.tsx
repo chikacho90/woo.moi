@@ -479,18 +479,18 @@ export default function WorktimePage() {
           <div className="mb-8">
             {/* 상단: 현재 시간 */}
             <div className="text-3xl font-bold font-mono mb-3">{fmtDuration(weekTotals.recognized)}</div>
-            {/* 바 위 라벨: 깃발(목표) + 최대 잔여 */}
-            <div className="relative h-4 mb-1">
+            {/* 바 위 라벨: 깃발(목표) + 최대 잔여 — 같은 높이 */}
+            <div className="relative flex items-end mb-1" style={{ height: "20px" }}>
               <div
-                className="absolute flex items-center gap-1 pointer-events-none"
+                className="absolute flex items-baseline gap-1 pointer-events-none"
                 style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, bottom: 0, transform: "translateX(-2px)" }}
               >
-                <span className="text-gray-500 text-xs">⚑</span>
-                <span className={`text-xs font-mono ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
+                <span className="text-gray-500 text-sm leading-none">⚑</span>
+                <span className={`text-xs font-mono leading-none ${weekTotals.remainTarget > 0 ? "text-gray-400" : "text-emerald-400"}`}>
                   -{fmtDuration(weekTotals.remainTarget)}
                 </span>
               </div>
-              <div className="absolute right-0 bottom-0 text-xs font-mono text-gray-600">
+              <div className="absolute right-0 bottom-0 text-xs font-mono text-gray-600 leading-none">
                 -{fmtDuration(weekTotals.remainMax)}
               </div>
             </div>
