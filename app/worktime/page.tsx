@@ -220,14 +220,14 @@ export default function WorktimePage() {
 
         {/* ─── Header ─── */}
         <div className="flex items-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
-          {/* Week selector */}
-          <div className="relative flex items-center gap-1">
-            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-xl">‹</button>
+          {/* Week selector — flex style */}
+          <div className="relative flex items-center">
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 text-2xl">‹</button>
             <button onClick={(e) => { e.stopPropagation(); setCalOpen(!calOpen); }}
-              className="text-[13px] text-gray-700 border border-gray-200 rounded-full px-5 py-1.5 hover:bg-gray-50 font-medium min-w-[160px] text-center">
+              className="text-sm text-gray-700 border border-gray-200 rounded-full px-6 py-2 hover:bg-gray-50 font-medium min-w-[180px] text-center">
               {data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}
             </button>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-xl">›</button>
+            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 text-2xl">›</button>
             {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
           <button onClick={() => setWeekOffset(0)} className="ml-3 text-[13px] text-gray-500 hover:text-gray-800">오늘</button>
@@ -235,14 +235,14 @@ export default function WorktimePage() {
           {/* Summary — 큰 숫자 + 바 (마커 텍스트가 바 위에) */}
           {data && (
             <div className="flex items-end gap-4 ml-auto">
-              <span className="text-3xl font-bold font-mono text-gray-900 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
+              <span className="text-2xl font-bold font-mono text-gray-900 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="flex items-center gap-2 text-[11px] font-mono text-gray-400">
                   <span>-{fmtDur(totals.remT)}</span>
                   <span className="text-gray-300">⚑</span>
                   <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
                 </div>
-                <div className="w-40 relative">
+                <div className="w-56 relative">
                   <div className="h-[6px] bg-gray-100 rounded-full">
                     <div className="h-full bg-teal-400 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
                   </div>
@@ -257,18 +257,18 @@ export default function WorktimePage() {
 
         {/* ─── Timeline ─── */}
         <div ref={scrollRef} className="overflow-x-auto">
-          <div style={{ width: `${TL_WIDTH + 130}px`, minWidth: "100%" }}>
+          <div style={{ width: `${TL_WIDTH + 160}px`, minWidth: "100%" }}>
 
             {/* Hour header */}
             <div className="flex">
-              <div className="w-[130px] shrink-0" />
+              <div className="w-[160px] shrink-0" />
               <div className="relative h-6 border-b border-gray-100" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
                   <div key={h} className="absolute text-[10px] text-gray-300 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
                     {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-400">정오<br/><span className="text-[9px]">12</span></span> : h > 12 ? h - 12 : h}
                   </div>
                 ))}
-                {isCur && <div className="absolute text-[10px] font-mono text-red-400 -translate-x-1/2 font-semibold" style={{ left: `${tlPct(nowMin)}%`, bottom: "2px" }}>{nowMin < 720 ? "오전" : "오후"} {fmtHM(nowMin)}</div>}
+                {isCur && <div className="absolute text-[10px] font-mono text-red-400 -translate-x-1/2 font-semibold" style={{ left: `${tlPct(nowMin)}%`, bottom: "2px" }}>{fmtAmPm(fmtHM(nowMin))}</div>}
               </div>
             </div>
 
@@ -288,7 +288,7 @@ export default function WorktimePage() {
               return (
                 <div key={dt} className={`flex ${isT ? "bg-green-50/40" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
                   {/* Left — sticky with right shadow mask */}
-                  <div className="w-[130px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5]"
+                  <div className="w-[160px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5]"
                     style={{ backgroundColor: isT ? "#f0fdf4" : "white", boxShadow: "6px 0 12px 0px rgba(0,0,0,0.06)" }}>
                     <div className="flex items-baseline gap-1 min-w-[40px]">
                       {isT
