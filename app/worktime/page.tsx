@@ -160,10 +160,10 @@ export default function WorktimePage() {
       <div className="max-w-[100vw] mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-4 px-5 py-3 flex-wrap sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-200">
+        <div className="flex items-center gap-3 px-3 py-2 flex-wrap sticky top-0 bg-white/95 backdrop-blur z-20 border-b border-gray-200">
           <div className="flex items-center gap-1">
             <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-lg">‹</button>
-            <span className="text-sm font-medium text-gray-800 min-w-[140px] text-center">{data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}</span>
+            <span className="text-sm font-medium text-gray-800 min-w-[110px] text-center">{data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}</span>
             <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-lg">›</button>
           </div>
           {!isCurrentWeek && <button onClick={() => setWeekOffset(0)} className="text-xs text-gray-500 hover:text-gray-900">오늘</button>}
@@ -187,14 +187,14 @@ export default function WorktimePage() {
 
         {/* Scrollable Timeline */}
         <div ref={scrollRef} className="overflow-x-auto">
-          <div style={{ width: `${TL_WIDTH + 140}px`, minWidth: "100%" }}>
+          <div style={{ width: `${TL_WIDTH + 110}px`, minWidth: "100%" }}>
 
             {/* Hour header */}
-            <div className="flex border-b border-gray-200">
-              <div className="w-[140px] shrink-0" />
-              <div className="relative h-8" style={{ width: `${TL_WIDTH}px` }}>
+            <div className="flex border-b border-gray-100">
+              <div className="w-[110px] shrink-0" />
+              <div className="relative h-7" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
-                  <div key={h} className="absolute text-[11px] text-gray-400 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, top: "8px" }}>
+                  <div key={h} className="absolute text-[10px] text-gray-400 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, top: "6px" }}>
                     {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-500">정오<br/><span className="text-[10px]">12</span></span> : h > 12 ? h - 12 : h}
                   </div>
                 ))}
@@ -226,32 +226,32 @@ export default function WorktimePage() {
               const actualMerged: MergedDay | null = hasActual ? { date: dt, weeklyHoliday: actualDay!.weeklyHoliday || false, clockIn: actualDay!.clockIn, clockOut: actualDay!.clockOut, workMin: actualDay!.workMin, restMin: actualDay!.restMin, timeOffMin: actualDay!.timeOffMin, hasActual: true, ongoing, source: "actual", restRanges: actualDay!.restRanges, timeOffRanges: actualDay!.timeOffRanges } : null;
 
               return (
-                <div key={dt} className={`flex border-b border-gray-100 ${isToday ? "bg-green-50/60" : ""}`}>
+                <div key={dt} className={`flex border-b border-gray-50 ${isToday ? "bg-green-50/50" : ""}`}>
                   {/* Left panel */}
-                  <div className="w-[140px] shrink-0 py-5 px-5 sticky left-0 z-[5] flex items-center gap-3" style={{ backgroundColor: isToday ? "rgb(240 253 244 / 0.6)" : "white" }}>
-                    <div className="flex items-baseline gap-1 min-w-[42px]">
+                  <div className="w-[110px] shrink-0 py-3 px-3 sticky left-0 z-[5] flex items-center gap-2" style={{ backgroundColor: isToday ? "rgb(240 253 244 / 0.6)" : "white" }}>
+                    <div className="flex items-baseline gap-0.5 shrink-0">
                       {isToday
-                        ? <span className="w-7 h-7 rounded-full bg-green-500 text-white text-sm font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
-                        : <span className={`text-lg font-medium ${isWeekend ? "text-red-400" : "text-gray-800"}`}>{dateLabel(dt)}</span>
+                        ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center shrink-0">{dateLabel(dt)}</span>
+                        : <span className={`text-base font-medium ${isWeekend ? "text-red-400" : "text-gray-800"}`}>{dateLabel(dt)}</span>
                       }
-                      <span className={`text-sm ${isToday ? "text-green-600" : isWeekend ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
+                      <span className={`text-xs ${isToday ? "text-green-600" : isWeekend ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
                     </div>
-                    <span className={`text-sm font-mono whitespace-nowrap px-1.5 py-0.5 rounded ${isOvertime ? "bg-red-100 text-red-600 font-semibold" : rec > 0 ? "bg-gray-100 text-gray-700" : "bg-gray-50 text-gray-400"}`}>
+                    <span className={`text-xs font-mono whitespace-nowrap px-1 py-0.5 rounded ${isOvertime ? "bg-red-100 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "bg-gray-50 text-gray-400 border border-gray-200"}`}>
                       {fmtDuration(rec)}{isOvertime ? " 🔥" : ""}
                     </span>
                   </div>
 
                   {/* Timeline */}
-                  <div className="relative py-3" style={{ width: `${TL_WIDTH}px`, minHeight: "80px" }}>
+                  <div className="relative py-2" style={{ width: `${TL_WIDTH}px`, minHeight: "60px" }}>
                     {TL_HOURS.map((h) => (
-                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-gray-300 border-dashed" : "border-l border-gray-100"}`} style={{ left: `${tlPct(h * 60)}%` }} />
+                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-gray-200 border-dashed" : "border-l border-gray-50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
                     ))}
                     {isCurrentWeek && (
                       <div className="absolute top-0 bottom-0 w-[2px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />
                     )}
 
                     {/* Bars */}
-                    <div className="relative" style={{ height: "32px", marginTop: "4px" }}>
+                    <div className="relative" style={{ height: "28px", marginTop: "2px" }}>
                       {finalized ? (
                         <ReadonlyTimeline day={actualMerged!} />
                       ) : (
