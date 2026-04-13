@@ -259,26 +259,6 @@ export default function WorktimePage() {
             {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
           <button onClick={() => setWeekOffset(0)} className="ml-3 text-[13px] text-gray-500 hover:text-gray-800">오늘</button>
-
-          {/* Summary — 큰 숫자 + 바 (마커 텍스트가 바 위에) */}
-          {data && (
-            <div className="ml-auto">
-              <div className="flex items-center justify-end gap-1.5 mb-0.5 text-[11px] font-mono text-gray-400">
-                <span>-{fmtDur(totals.remT)}</span>
-                <span className="text-gray-300">⚑</span>
-                <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
-                <div className="w-48 relative">
-                  <div className="h-[7px] bg-gray-100 rounded-full">
-                    <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
-                  </div>
-                  <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {error && <div className="mx-4 my-2 p-2 bg-red-50 text-red-500 rounded text-xs border border-red-100">{error}</div>}
@@ -418,6 +398,26 @@ export default function WorktimePage() {
             })}
           </div>
         </div>
+
+        {/* Weekly summary */}
+        {data && (
+          <div className="flex flex-col items-center py-6 gap-1">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-gray-400">
+              <span>-{fmtDur(totals.remT)}</span>
+              <span className="text-gray-300">⚑</span>
+              <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
+              <div className="w-48 relative">
+                <div className="h-[7px] bg-gray-100 rounded-full">
+                  <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                </div>
+                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Legend */}
         <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
