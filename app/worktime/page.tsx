@@ -100,22 +100,22 @@ function CalendarPopup({ weekFrom, onSelect, onClose }: { weekFrom: string; onSe
   }
 
   return (
-    <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 w-[280px]" onClick={(e) => e.stopPropagation()}>
+    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 w-[280px]" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-gray-800">{year}년 {month + 1}월</span>
+        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{year}년 {month + 1}월</span>
         <div className="flex gap-1">
-          <button onClick={() => { if (month === 0) { setYear(year - 1); setMonth(11); } else setMonth(month - 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-sm">‹</button>
-          <button onClick={() => { if (month === 11) { setYear(year + 1); setMonth(0); } else setMonth(month + 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 text-sm">›</button>
+          <button onClick={() => { if (month === 0) { setYear(year - 1); setMonth(11); } else setMonth(month - 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm">‹</button>
+          <button onClick={() => { if (month === 11) { setYear(year + 1); setMonth(0); } else setMonth(month + 1); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 text-sm">›</button>
         </div>
       </div>
-      <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1">
+      <div className="grid grid-cols-7 text-[10px] text-gray-400 dark:text-gray-500 mb-1">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => <div key={d} className="text-center py-1">{d}</div>)}
       </div>
       <div className="grid grid-cols-7">
         {cells.map((d, i) => d ? (
           <button key={i} onClick={() => { const s = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`; onSelect(s); onClose(); }}
             className={`text-xs py-1.5 text-center rounded-md transition-colors
-              ${isToday(d) ? "bg-green-500 text-white font-bold" : isInWeek(d) ? "bg-green-100 text-green-800" : "text-gray-700 hover:bg-gray-100"}
+              ${isToday(d) ? "bg-green-500 text-white font-bold" : isInWeek(d) ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}
               ${i % 7 === 0 ? "text-red-400" : ""}`}>
             {d}
           </button>
@@ -146,10 +146,10 @@ function EditableTimeline({ day, onChange, onClear }: { day: MergedDay; onChange
         <div className="group/b absolute top-0 bottom-0 bg-blue-300/50 hover:bg-blue-300/70 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l" onPointerDown={(e) => start("resizeStart", e)} />
           <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r" onPointerDown={(e) => start("resizeEnd", e)} />
-          <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/b:flex absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white border border-gray-300 text-gray-400 hover:bg-red-500 hover:text-white items-center justify-center text-[9px] z-10">✕</button>
+          <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/b:flex absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white dark:bg-neutral-800 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:bg-red-500 hover:text-white items-center justify-center text-[9px] z-10">✕</button>
         </div>
       )}
-      {!has && <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 pointer-events-none">드래그해서 계획</div>}
+      {!has && <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">드래그해서 계획</div>}
     </div>
   );
 }
@@ -181,7 +181,7 @@ function ReadonlyTimeline({ day }: { day: MergedDay }) {
       {/* 휴게 */}
       {day.restRanges?.map((r, i) => {
         const s = parseHM(r.start), e = parseHM(r.end);
-        return s != null && e != null ? <div key={`r${i}`} className="absolute top-0 bottom-0 bg-white/50 rounded" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.2, tlPct(e) - tlPct(s))}%` }} /> : null;
+        return s != null && e != null ? <div key={`r${i}`} className="absolute top-0 bottom-0 bg-white/50 dark:bg-neutral-950/50 rounded" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.2, tlPct(e) - tlPct(s))}%` }} /> : null;
       })}
       {/* 휴가 */}
       {day.timeOffRanges?.map((r, i) => {
@@ -298,22 +298,22 @@ export default function WorktimePage() {
         {/* ─── Nav ─── */}
         <div className="relative flex items-center justify-center px-4 py-2.5 sticky top-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
           {/* 오늘 — 왼쪽 고정 */}
-          <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1">오늘</button>
+          <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1">오늘</button>
           {/* Week selector — 가운데 */}
           <div className="relative flex items-center border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden">
-            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 text-lg border-r border-gray-200 dark:border-gray-700">‹</button>
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 text-lg border-r border-gray-200 dark:border-gray-700">‹</button>
             <button onClick={(e) => { e.stopPropagation(); setCalOpen(!calOpen); }}
               className="text-sm text-gray-700 dark:text-gray-300 px-5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium min-w-[150px] text-center">
               {data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}
             </button>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 text-lg border-l border-gray-200 dark:border-gray-700">›</button>
+            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 text-lg border-l border-gray-200 dark:border-gray-700">›</button>
             {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
           {/* 테마 토글 — 오른쪽 고정 */}
           <button onClick={cycleTheme} className="absolute right-4 text-sm" title={themeMode}>{themeIcon}</button>
         </div>
 
-        {error && <div className="mx-4 my-2 p-2 bg-red-50 text-red-500 rounded text-xs border border-red-100">{error}</div>}
+        {error && <div className="mx-4 my-2 p-2 bg-red-50 dark:bg-red-950/30 text-red-500 rounded text-xs border border-red-100 dark:border-red-800">{error}</div>}
 
         {/* ─── Mobile Layout ─── */}
         {isMobile && (
@@ -321,7 +321,7 @@ export default function WorktimePage() {
             {/* 시간 헤더 */}
             <div className="relative h-5 mb-1">
               {ML_HOURS.filter((_, i) => i % 2 === 0).map((h) => (
-                <div key={h} className="absolute text-[9px] text-gray-300 -translate-x-1/2" style={{ left: `${mlPct(h * 60)}%`, top: "2px" }}>
+                <div key={h} className="absolute text-[9px] text-gray-300 dark:text-gray-600 -translate-x-1/2" style={{ left: `${mlPct(h * 60)}%`, top: "2px" }}>
                   {h === 12 ? "정오" : h > 12 ? h - 12 : h}
                 </div>
               ))}
@@ -351,21 +351,21 @@ export default function WorktimePage() {
               const hasOt = otS != null && aEnd != null && aEnd > otS;
 
               return (
-                <div key={dt} className={`py-2 ${isT ? "bg-green-50/40 -mx-3 px-3 rounded-lg" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                <div key={dt} className={`py-2 border-b border-gray-100 dark:border-neutral-800 ${isT ? "bg-green-50/40 dark:bg-emerald-950/30 -mx-3 px-3 rounded-lg" : ""}`}>
                   {/* 날짜 + 시간 */}
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="flex items-baseline gap-0.5">
                       {isT ? <span className="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
-                        : <span className={`text-sm font-medium ${isWe ? "text-red-400" : "text-gray-800"}`}>{dateNum(dt)}</span>}
-                      <span className={`text-[11px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
+                        : <span className={`text-sm font-medium ${isWe ? "text-red-400" : "text-gray-800 dark:text-gray-200"}`}>{dateNum(dt)}</span>}
+                      <span className={`text-[11px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400 dark:text-gray-500"}`}>{dow}</span>
                     </div>
                     {isT && !hasA ? (
                       <button onClick={() => { const input = prompt("출근 시간 (예: 10:30)", todayClockIn || ""); if (input && /^\d{1,2}:\d{2}$/.test(input.trim())) setClockIn(input.trim()); }}
-                        className={`text-[11px] font-mono rounded px-1 py-0.5 ${todayClockIn ? "bg-amber-50 text-amber-600" : "border border-dashed border-gray-300 text-gray-400"}`}>
+                        className={`text-[11px] font-mono rounded px-1 py-0.5 ${todayClockIn ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600" : "border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"}`}>
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)!)) : "출근"}
                       </button>
                     ) : (
-                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-500" : "border border-gray-200 text-gray-400"}`}>
+                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${isOt ? "bg-red-50 dark:bg-red-950/30 text-red-500 font-semibold" : rec > 0 ? "text-gray-500 dark:text-gray-400" : "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
                         {fmtDur(rec)}{isOt ? " 🔥" : ""}
                       </span>
                     )}
@@ -373,7 +373,7 @@ export default function WorktimePage() {
                   {/* 타임라인 바 */}
                   <div className="relative" style={{ height: "24px" }}>
                     {ML_HOURS.map((h) => (
-                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
+                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
                     {/* plan 바 — 탭하면 바텀시트 */}
@@ -400,7 +400,7 @@ export default function WorktimePage() {
                             style={{ left: `${mlPct(aci)}%`, width: `${Math.max(0.5, mlPct(aEnd) - mlPct(aci))}%` }} />
                         )}
                         {hasOt && otS != null && <div className="absolute top-0 h-[3px] bg-red-400 rounded-t" style={{ left: `${mlPct(otS)}%`, width: `${Math.max(0.2, mlPct(aEnd) - mlPct(otS))}%` }} />}
-                        {am.restRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`r${j}`} className="absolute top-0 bottom-0 bg-white/50 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.2, mlPct(e) - mlPct(s))}%` }} /> : null; })}
+                        {am.restRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`r${j}`} className="absolute top-0 bottom-0 bg-white/50 dark:bg-neutral-950/50 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.2, mlPct(e) - mlPct(s))}%` }} /> : null; })}
                         {am.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`t${j}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
                       </>
                     )}
@@ -413,8 +413,8 @@ export default function WorktimePage() {
                   </div>
                   {/* 라벨 */}
                   <div className="relative text-[9px] mt-0.5 h-3">
-                    {hasA && ad!.clockIn && <span className="absolute text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
-                    {hasA && ad!.clockOut && <span className="absolute text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                    {hasA && ad!.clockIn && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
+                    {hasA && ad!.clockOut && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                     {!fin && pm.clockOut && !(hasA && ad!.clockIn === pm.clockIn) && (
                       <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                     )}
@@ -432,10 +432,10 @@ export default function WorktimePage() {
             {/* Hour header */}
             <div className="flex">
               <div className="w-[160px] shrink-0" />
-              <div className="relative h-6 border-b border-gray-100" style={{ width: `${TL_WIDTH}px` }}>
+              <div className="relative h-6 border-b border-gray-100 dark:border-gray-800" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
-                  <div key={h} className="absolute text-[10px] text-gray-300 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
-                    {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-400">정오<br/><span className="text-[9px]">12</span></span> : h > 12 ? h - 12 : h}
+                  <div key={h} className="absolute text-[10px] text-gray-300 dark:text-gray-600 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
+                    {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-400 dark:text-gray-500">정오<br/><span className="text-[9px]">12</span></span> : h > 12 ? h - 12 : h}
                   </div>
                 ))}
                 {isCur && <div className="absolute text-[10px] font-mono text-red-400 -translate-x-1/2 font-semibold" style={{ left: `${tlPct(nowMin)}%`, bottom: "2px" }}>{fmtAmPm(fmtHM(nowMin))}</div>}
@@ -468,15 +468,14 @@ export default function WorktimePage() {
               const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", workRanges: ad!.workRanges, restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
 
               return (
-                <div key={dt} className={`flex ${isT ? "bg-green-50/40" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                <div key={dt} className={`flex border-b border-gray-100 dark:border-neutral-800 ${isT ? "bg-green-50/40 dark:bg-emerald-950/30" : ""}`}>
                   {/* Left — sticky with right shadow mask */}
-                  <div className="w-[160px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5]"
-                    style={{ backgroundColor: isT ? "#f0fdf4" : "white", boxShadow: "6px 0 12px 0px rgba(0,0,0,0.06)" }}>
+                  <div className={`w-[160px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5] shadow-[6px_0_12px_0px_rgba(0,0,0,0.06)] dark:shadow-[6px_0_12px_0px_rgba(0,0,0,0.3)] ${isT ? "bg-green-50 dark:bg-emerald-950/40" : "bg-white dark:bg-neutral-950"}`}>
                     <div className="flex items-baseline gap-1 min-w-[40px]">
                       {isT
                         ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-[11px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
-                        : <span className={`text-[15px] font-medium ${isWe ? "text-red-400" : "text-gray-800"}`}>{dateNum(dt)}</span>}
-                      <span className={`text-[12px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
+                        : <span className={`text-[15px] font-medium ${isWe ? "text-red-400" : "text-gray-800 dark:text-gray-200"}`}>{dateNum(dt)}</span>}
+                      <span className={`text-[12px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400 dark:text-gray-500"}`}>{dow}</span>
                     </div>
                     {/* 오늘 + actual 없음: 출근시간 입력 가능 */}
                     {isT && !hasA ? (
@@ -485,12 +484,12 @@ export default function WorktimePage() {
                           const input = prompt("출근 시간 입력 (예: 10:30)", todayClockIn || "");
                           if (input && /^\d{1,2}:\d{2}$/.test(input.trim())) setClockIn(input.trim());
                         }}
-                        className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${todayClockIn ? "bg-amber-50 text-amber-600 border border-amber-200" : "border border-dashed border-gray-300 text-gray-400"}`}
+                        className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${todayClockIn ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-700" : "border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"}`}
                       >
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)! - (nowMin > REST_START && parseHM(todayClockIn)! < REST_END ? Math.min(60, nowMin - REST_START) : 0))) : "출근 입력"}
                       </button>
                     ) : (
-                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "border border-gray-200 text-gray-400"}`}>
+                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 dark:bg-red-950/30 text-red-500 font-semibold" : rec > 0 ? "text-gray-600 dark:text-gray-400" : "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
                         {fmtDur(rec)}{isOt ? " 🔥" : ""}
                       </span>
                     )}
@@ -499,7 +498,7 @@ export default function WorktimePage() {
                   {/* Timeline area */}
                   <div className="relative py-3" style={{ width: `${TL_WIDTH}px`, minHeight: "68px" }}>
                     {TL_HOURS.map((h) => (
-                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
+                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
                     ))}
                     {isCur && <div className="absolute top-0 bottom-0 w-[1.5px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />}
 
@@ -533,12 +532,12 @@ export default function WorktimePage() {
                           {ad!.workRanges ? ad!.workRanges.map((wr, j) => {
                             const ws = parseHM(wr.start);
                             if (ws == null) return null;
-                            return <span key={`ws${j}`} className="absolute whitespace-nowrap text-gray-400" style={{ left: `${tlPct(ws)}%` }}>
+                            return <span key={`ws${j}`} className="absolute whitespace-nowrap text-gray-400 dark:text-gray-500" style={{ left: `${tlPct(ws)}%` }}>
                               {fmtAmPm(wr.start)}
-                              {j === 0 && ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}
+                              {j === 0 && ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-600 ml-1">휴게 {ad!.restRanges.length}건</span>}
                             </span>;
-                          }) : ad!.clockIn && <span className="absolute whitespace-nowrap text-gray-400" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
-                          {ad!.clockOut && <span className={`absolute whitespace-nowrap text-gray-400 ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                          }) : ad!.clockIn && <span className="absolute whitespace-nowrap text-gray-400 dark:text-gray-500" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-600 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
+                          {ad!.clockOut && <span className={`absolute whitespace-nowrap text-gray-400 dark:text-gray-500 ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                           {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
                           {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
                         </>
@@ -562,7 +561,7 @@ export default function WorktimePage() {
         </div>}
 
         {/* Legend */}
-        <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
+        <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500">
           <div className="flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
@@ -570,27 +569,27 @@ export default function WorktimePage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-300 rounded-full" />휴가</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-300/50 rounded-full" />계획</span>
           </div>
-          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 hover:text-red-400">계획 리셋</button>
+          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-600 hover:text-red-400">계획 리셋</button>
         </div>
 
         {/* Weekly summary — 별도 섹션 */}
         {data && (
-          <div className="border-t border-gray-100 py-8 px-8 flex justify-center">
+          <div className="border-t border-gray-100 dark:border-gray-800 py-8 px-8 flex justify-center">
             <div className="w-full max-w-2xl relative" style={{ paddingTop: "24px" }}>
               {/* 현재 시간 — 바 왼쪽 끝 위 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 left-0" style={{ top: "0" }}>
+              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 left-0" style={{ top: "0" }}>
                 {fmtDur(totals.rec)}
               </span>
               {/* 목표 잔여 — 마커 위치 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>
+              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>
                 -{fmtDur(totals.remT)} ⚑
               </span>
               {/* 최대 잔여 — 가장 오른쪽 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 right-0" style={{ top: "0" }}>
+              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 right-0" style={{ top: "0" }}>
                 -{fmtDur(totals.remM)}
               </span>
               {/* 바 — 타임라인과 동일한 두께 */}
-              <div className="relative h-[30px] bg-gray-100 rounded overflow-hidden">
+              <div className="relative h-[30px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
                 {/* 계획 (뒤) */}
                 {totals.planned > 0 && (
                   <div className="absolute top-0 bottom-0 bg-blue-300/50 rounded" style={{ left: `${(totals.rec / WEEK_MAX_MIN) * 100}%`, width: `${Math.min(100 - (totals.rec / WEEK_MAX_MIN) * 100, (totals.planned / WEEK_MAX_MIN) * 100)}%` }} />
@@ -599,7 +598,7 @@ export default function WorktimePage() {
                 <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
               </div>
               {/* 목표 마커 라인 */}
-              <div className="absolute bottom-0 w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "36px" }} />
+              <div className="absolute bottom-0 w-[2px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "36px" }} />
             </div>
           </div>
         )}
@@ -608,30 +607,30 @@ export default function WorktimePage() {
         {sheet && (
           <div className="fixed inset-0 z-50" onClick={() => setSheet(null)}>
             <div className="absolute inset-0 bg-black/20" />
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-5 pb-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-              <div className="text-sm text-gray-500 mb-4">{sheet.date} 계획</div>
+            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl p-5 pb-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">{sheet.date} 계획</div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 w-12">출근</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 w-12">출근</span>
                   <input type="time" defaultValue={fmtHM(sheet.ci)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
                     onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 w-12">퇴근</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
                   <input type="time" defaultValue={fmtHM(sheet.co)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
                     onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v }); }} />
                 </div>
               </div>
 
               <div className="flex gap-2 mt-5">
                 <button onClick={() => { if (sheet.co > sheet.ci) { updatePlan(sheet.date, sheet.ci, sheet.co); setSheet(null); } }}
-                  className="flex-1 bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium">저장</button>
+                  className="flex-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg py-2.5 text-sm font-medium">저장</button>
                 <button onClick={() => { clearPlan(sheet.date); setSheet(null); }}
-                  className="px-4 border border-gray-200 text-gray-500 rounded-lg py-2.5 text-sm">삭제</button>
+                  className="px-4 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg py-2.5 text-sm">삭제</button>
               </div>
             </div>
           </div>
