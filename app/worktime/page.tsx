@@ -415,7 +415,7 @@ export default function WorktimePage() {
 
         {/* Weekly summary — 별도 섹션 */}
         {data && (
-          <div className="border-t border-gray-100 py-8 px-8">
+          <div className="border-t border-gray-100 py-8 px-8 flex justify-center">
             <div className="w-full max-w-2xl relative" style={{ paddingTop: "24px" }}>
               {/* 현재 시간 — 바 왼쪽 끝 위 */}
               <span className="absolute text-[11px] font-mono text-gray-400 left-0" style={{ top: "0" }}>
