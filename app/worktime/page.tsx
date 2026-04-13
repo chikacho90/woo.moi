@@ -262,6 +262,9 @@ export default function WorktimePage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // 모바일 바텀시트
+  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number } | null>(null);
+
   return (
     <div className="min-h-screen bg-white text-gray-900" onClick={() => calOpen && setCalOpen(false)}>
       <div className="max-w-[100vw] mx-auto">
@@ -346,32 +349,16 @@ export default function WorktimePage() {
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
-                    {/* plan 바 — 클릭시 메뉴 */}
+                    {/* plan 바 — 탭하면 바텀시트 */}
                     {!fin && pci != null && pco != null && (
                       <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer z-[3]"
                         style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
-                        onClick={() => {
-                          const choice = prompt("1: 출근 변경\n2: 퇴근 변경\n3: 삭제\n\n번호 입력:", "");
-                          if (choice === "1") {
-                            const v = prompt("출근 계획 (예: 09:00)", pm.clockIn || "");
-                            if (v && /^\d{1,2}:\d{2}$/.test(v)) { const ci = parseHM(v); if (ci != null && pco > ci) updatePlan(dt, ci, pco); }
-                          } else if (choice === "2") {
-                            const v = prompt("퇴근 계획 (예: 18:00)", pm.clockOut || "");
-                            if (v && /^\d{1,2}:\d{2}$/.test(v)) { const co = parseHM(v); if (co != null && co > pci) updatePlan(dt, pci, co); }
-                          } else if (choice === "3") { clearPlan(dt); }
-                        }} />
+                        onClick={() => setSheet({ date: dt, ci: pci, co: pco })} />
                     )}
-                    {/* plan 없을 때 — 빈 영역 클릭으로 추가 */}
+                    {/* plan 없을 때 — 탭하면 새 계획 바텀시트 */}
                     {!fin && !hasA && pci == null && (
                       <div className="absolute inset-0 cursor-pointer"
-                        onClick={() => {
-                          const ciInput = prompt("출근 계획 (예: 09:00)");
-                          if (!ciInput || !/^\d{1,2}:\d{2}$/.test(ciInput)) return;
-                          const coInput = prompt("퇴근 계획 (예: 18:00)");
-                          if (!coInput || !/^\d{1,2}:\d{2}$/.test(coInput)) return;
-                          const ci = parseHM(ciInput), co = parseHM(coInput);
-                          if (ci != null && co != null && co > ci) updatePlan(dt, ci, co);
-                        }} />
+                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60 })} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
@@ -586,6 +573,39 @@ export default function WorktimePage() {
               </div>
               {/* 목표 마커 라인 */}
               <div className="absolute bottom-0 w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "36px" }} />
+            </div>
+          </div>
+        )}
+
+        {/* ─── 모바일 바텀시트 ─── */}
+        {sheet && (
+          <div className="fixed inset-0 z-50" onClick={() => setSheet(null)}>
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-5 pb-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+              <div className="text-sm text-gray-500 mb-4">{sheet.date} 계획</div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500 w-12">출근</span>
+                  <input type="time" defaultValue={fmtHM(sheet.ci)}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500 w-12">퇴근</span>
+                  <input type="time" defaultValue={fmtHM(sheet.co)}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v }); }} />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => { if (sheet.co > sheet.ci) { updatePlan(sheet.date, sheet.ci, sheet.co); setSheet(null); } }}
+                  className="flex-1 bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium">저장</button>
+                <button onClick={() => { clearPlan(sheet.date); setSheet(null); }}
+                  className="px-4 border border-gray-200 text-gray-500 rounded-lg py-2.5 text-sm">삭제</button>
+              </div>
             </div>
           </div>
         )}
