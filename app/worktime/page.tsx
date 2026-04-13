@@ -196,7 +196,27 @@ export default function WorktimePage() {
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
+  const [todayClockIn, setTodayClockIn] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 오늘 출근시간 localStorage 관리
+  useEffect(() => {
+    const stored = localStorage.getItem("worktime-today-clockin");
+    if (stored) {
+      try {
+        const { date, time } = JSON.parse(stored);
+        const today = new Date().toISOString().slice(0, 10);
+        if (date === today) setTodayClockIn(time);
+        else localStorage.removeItem("worktime-today-clockin");
+      } catch { localStorage.removeItem("worktime-today-clockin"); }
+    }
+  }, []);
+
+  function setClockIn(time: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem("worktime-today-clockin", JSON.stringify({ date: today, time }));
+    setTodayClockIn(time);
+  }
 
   const weekOfDate = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + weekOffset * 7); return d.toISOString().slice(0, 10); }, [weekOffset]);
   const refresh = useCallback(async () => { try { setLoading(true); const r = await fetch(`/api/worktime?weekOf=${weekOfDate}`, { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status}`); setData(await r.json()); setError(null); } catch (e) { setError((e as Error).message); } finally { setLoading(false); } }, [weekOfDate]);
@@ -304,9 +324,22 @@ export default function WorktimePage() {
                         : <span className={`text-[15px] font-medium ${isWe ? "text-red-400" : "text-gray-800"}`}>{dateNum(dt)}</span>}
                       <span className={`text-[12px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
                     </div>
-                    <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "border border-gray-200 text-gray-400"}`}>
-                      {fmtDur(rec)}{isOt ? " 🔥" : ""}
-                    </span>
+                    {/* 오늘 + actual 없음: 출근시간 입력 가능 */}
+                    {isT && !hasA ? (
+                      <button
+                        onClick={() => {
+                          const input = prompt("출근 시간 입력 (예: 10:30)", todayClockIn || "");
+                          if (input && /^\d{1,2}:\d{2}$/.test(input.trim())) setClockIn(input.trim());
+                        }}
+                        className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${todayClockIn ? "bg-amber-50 text-amber-600 border border-amber-200" : "border border-dashed border-gray-300 text-gray-400"}`}
+                      >
+                        {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)! - (nowMin > REST_START && parseHM(todayClockIn)! < REST_END ? Math.min(60, nowMin - REST_START) : 0))) : "출근 입력"}
+                      </button>
+                    ) : (
+                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-600" : "border border-gray-200 text-gray-400"}`}>
+                        {fmtDur(rec)}{isOt ? " 🔥" : ""}
+                      </span>
+                    )}
                   </div>
 
                   {/* Timeline area */}
@@ -323,14 +356,14 @@ export default function WorktimePage() {
                             <EditableTimeline day={pm} onChange={(a, b) => updatePlan(dt, a, b)} onClear={() => clearPlan(dt)} />
                           </div>
                           {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} /></div>}
-                          {/* 오늘 + actual 없음 + plan 있음 → plan 시작~현재시각 진행중 바 */}
-                          {isT && !hasA && pm.clockIn && (() => {
-                            const pci = parseHM(pm.clockIn);
-                            if (pci == null || nowMin <= pci) return null;
+                          {/* 오늘 + actual 없음 + 출근시간 있음 → 출근~현재 진행중 바 */}
+                          {isT && !hasA && (() => {
+                            const ci = todayClockIn ? parseHM(todayClockIn) : (pm.clockIn ? parseHM(pm.clockIn) : null);
+                            if (ci == null || nowMin <= ci) return null;
                             return <div className="absolute inset-0 pointer-events-none">
                               <div className="relative h-full">
                                 <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse"
-                                  style={{ left: `${tlPct(pci)}%`, width: `${Math.max(0.3, tlPct(nowMin) - tlPct(pci))}%` }} />
+                                  style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.3, tlPct(nowMin) - tlPct(ci))}%` }} />
                               </div>
                             </div>;
                           })()}
@@ -352,6 +385,10 @@ export default function WorktimePage() {
                         {ad!.clockOut && <span className={`absolute whitespace-nowrap ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                         {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
                         {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
+                      </div>
+                    ) : isT && todayClockIn && !hasA ? (
+                      <div className="relative text-[10px] text-amber-500 mt-0.5 h-4">
+                        <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(todayClockIn)!)}%` }}>{fmtAmPm(todayClockIn)}</span>
                       </div>
                     ) : pm.clockIn && pm.clockOut && (
                       <div className="relative text-[10px] text-blue-400 mt-0.5 h-4">
