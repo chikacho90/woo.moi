@@ -35,6 +35,10 @@ const TL_WIDTH = 1600;
 const TL_HOURS = Array.from({ length: 25 }, (_, i) => i);
 
 function tlPct(min: number) { return Math.max(0, Math.min(100, ((min - TL_START) / TL_RANGE) * 100)); }
+// 모바일: 7시~23시 범위
+const ML_START = 7 * 60, ML_END = 23 * 60, ML_RANGE = ML_END - ML_START;
+function mlPct(min: number) { return Math.max(0, Math.min(100, ((min - ML_START) / ML_RANGE) * 100)); }
+const ML_HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
 function tlPx(min: number) { return (tlPct(min) / 100) * TL_WIDTH; }
 function restOverlap(ci: number, co: number): number { return Math.max(0, Math.min(co, REST_END) - Math.max(ci, REST_START)); }
 const DOW_KO = ["일", "월", "화", "수", "목", "금", "토"];
@@ -250,6 +254,14 @@ export default function WorktimePage() {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const isCur = weekOffset === 0;
 
+  // 모바일 감지
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   return (
     <div className="min-h-screen bg-white text-gray-900" onClick={() => calOpen && setCalOpen(false)}>
       <div className="max-w-[100vw] mx-auto">
@@ -273,8 +285,111 @@ export default function WorktimePage() {
 
         {error && <div className="mx-4 my-2 p-2 bg-red-50 text-red-500 rounded text-xs border border-red-100">{error}</div>}
 
-        {/* ─── Timeline ─── */}
-        <div ref={scrollRef} className="overflow-x-auto hide-scrollbar">
+        {/* ─── Mobile Layout ─── */}
+        {isMobile && (
+          <div className="px-3 pb-2">
+            {/* 시간 헤더 */}
+            <div className="relative h-5 mb-1">
+              {ML_HOURS.filter((_, i) => i % 2 === 0).map((h) => (
+                <div key={h} className="absolute text-[9px] text-gray-300 -translate-x-1/2" style={{ left: `${mlPct(h * 60)}%`, top: "2px" }}>
+                  {h === 12 ? "정오" : h > 12 ? h - 12 : h}
+                </div>
+              ))}
+              {isCur && <div className="absolute text-[9px] font-mono text-red-400 -translate-x-1/2 font-semibold" style={{ left: `${mlPct(nowMin)}%`, top: "2px" }}>{fmtAmPm(fmtHM(nowMin))}</div>}
+            </div>
+
+            {dates.map((dt, i) => {
+              const d = merged[i]; if (!d) return null;
+              const ad = byDate.get(dt), pd = plans[dt];
+              const rec = recMin(d);
+              const isT = dt === todayStr, dow = getDow(dt);
+              const di = new Date(dt + "T00:00:00+09:00").getDay();
+              const isWe = di === 0 || di === 6;
+              const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
+              const isOt = rec > DAILY_TARGET_MIN;
+              let pm = mergeDay(undefined, pd, dt);
+              if (isT && hasA && ad!.clockIn && pm.clockIn) {
+                const aci = parseHM(ad!.clockIn), pci = parseHM(pm.clockIn), pco = parseHM(pm.clockOut);
+                if (aci != null && pci != null && aci !== pci && pco != null) pm = mergeDay(undefined, { ...pd, clockIn: fmtHM(aci), clockOut: fmtHM(Math.min(aci + (pco - pci), TL_END)) }, dt);
+              }
+              const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", workRanges: ad!.workRanges, restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
+              const pci = parseHM(pm.clockIn), pco = parseHM(pm.clockOut);
+              const aci = am ? parseHM(am.clockIn) : null;
+              const aco = am ? parseHM(am.clockOut) : null;
+              const aEnd = aco != null ? aco : ong ? nowMin : null;
+              const otS = aci != null ? otStartMin(aci, d.restMin, d.timeOffMin) : null;
+              const hasOt = otS != null && aEnd != null && aEnd > otS;
+
+              return (
+                <div key={dt} className={`py-2 ${isT ? "bg-green-50/40 -mx-3 px-3 rounded-lg" : ""}`} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  {/* 날짜 + 시간 */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex items-baseline gap-0.5">
+                      {isT ? <span className="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
+                        : <span className={`text-sm font-medium ${isWe ? "text-red-400" : "text-gray-800"}`}>{dateNum(dt)}</span>}
+                      <span className={`text-[11px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400"}`}>{dow}</span>
+                    </div>
+                    {isT && !hasA ? (
+                      <button onClick={() => { const input = prompt("출근 시간 (예: 10:30)", todayClockIn || ""); if (input && /^\d{1,2}:\d{2}$/.test(input.trim())) setClockIn(input.trim()); }}
+                        className={`text-[11px] font-mono rounded px-1 py-0.5 ${todayClockIn ? "bg-amber-50 text-amber-600" : "border border-dashed border-gray-300 text-gray-400"}`}>
+                        {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)!)) : "출근"}
+                      </button>
+                    ) : (
+                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${isOt ? "bg-red-50 text-red-500 font-semibold" : rec > 0 ? "text-gray-500" : "border border-gray-200 text-gray-400"}`}>
+                        {fmtDur(rec)}{isOt ? " 🔥" : ""}
+                      </span>
+                    )}
+                  </div>
+                  {/* 타임라인 바 */}
+                  <div className="relative" style={{ height: "24px" }}>
+                    {ML_HOURS.map((h) => (
+                      <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
+                    ))}
+                    {isCur && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
+                    {/* plan 바 */}
+                    {!fin && pci != null && pco != null && (
+                      <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded" style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }} />
+                    )}
+                    {/* actual 바 */}
+                    {hasA && am && aci != null && aEnd != null && (
+                      <>
+                        {am.workRanges && am.workRanges.length > 0 ? am.workRanges.map((wr, j) => {
+                          const ws = parseHM(wr.start), we = parseHM(wr.end);
+                          if (ws == null || we == null) return null;
+                          return <div key={`w${j}`} className={`absolute top-0 bottom-0 rounded ${wr.remote ? "bg-pink-300" : ong ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
+                            style={{ left: `${mlPct(ws)}%`, width: `${Math.max(0.5, mlPct(we) - mlPct(ws))}%` }} />;
+                        }) : (
+                          <div className={`absolute top-0 bottom-0 rounded ${ong ? "bg-amber-300/80 animate-pulse" : "bg-amber-300"}`}
+                            style={{ left: `${mlPct(aci)}%`, width: `${Math.max(0.5, mlPct(aEnd) - mlPct(aci))}%` }} />
+                        )}
+                        {hasOt && otS != null && <div className="absolute top-0 h-[3px] bg-red-400 rounded-t" style={{ left: `${mlPct(otS)}%`, width: `${Math.max(0.2, mlPct(aEnd) - mlPct(otS))}%` }} />}
+                        {am.restRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`r${j}`} className="absolute top-0 bottom-0 bg-white/50 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.2, mlPct(e) - mlPct(s))}%` }} /> : null; })}
+                        {am.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`t${j}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
+                      </>
+                    )}
+                    {/* 오늘 진행중 (actual 없을 때) */}
+                    {isT && !hasA && (() => {
+                      const ci = todayClockIn ? parseHM(todayClockIn) : (pm.clockIn ? parseHM(pm.clockIn) : null);
+                      if (ci == null || nowMin <= ci) return null;
+                      return <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse" style={{ left: `${mlPct(ci)}%`, width: `${Math.max(0.3, mlPct(nowMin) - mlPct(ci))}%` }} />;
+                    })()}
+                  </div>
+                  {/* 라벨 */}
+                  <div className="relative text-[9px] mt-0.5 h-3">
+                    {hasA && ad!.clockIn && <span className="absolute text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
+                    {hasA && ad!.clockOut && <span className="absolute text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                    {!fin && pm.clockOut && !(hasA && ad!.clockIn === pm.clockIn) && (
+                      <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ─── Desktop Timeline ─── */}
+        {!isMobile && <div ref={scrollRef} className="overflow-x-auto hide-scrollbar">
           <div style={{ width: `${TL_WIDTH + 160}px`, minWidth: "100%" }}>
 
             {/* Hour header */}
@@ -407,7 +522,7 @@ export default function WorktimePage() {
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Legend */}
         <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
