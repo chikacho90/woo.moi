@@ -97,16 +97,26 @@ export async function GET(request: Request) {
   const attrData = await attrRes.json();
 
   // 진행 중 출근 데이터
-  let ongoingClockIn: { date: string; startTs: number; formId: string } | null = null;
+  let ongoingClockIn: {
+    date: string; startTs: number; formId: string;
+    restRanges: { startTs: number; endTs: number }[];
+  } | null = null;
   if (clockRes.ok) {
     try {
       const clockData = await clockRes.json();
       const pack = clockData?.onGoingRecordPack;
       if (pack?.onGoing && pack?.startRecord?.targetTime) {
+        const rests: { startTs: number; endTs: number }[] = [];
+        for (const r of pack.restRecords || []) {
+          const rs = r.restStartRecord?.targetTime;
+          const re = r.restStopRecord?.targetTime;
+          if (rs && re) rests.push({ startTs: rs, endTs: re });
+        }
         ongoingClockIn = {
           date: clockData.targetDate,
           startTs: pack.startRecord.targetTime,
           formId: pack.startRecord.customerWorkFormId || "409273",
+          restRanges: rests,
         };
       }
     } catch {}
@@ -151,11 +161,21 @@ export async function GET(request: Request) {
 
     // 진행 중 출근 데이터 주입 (work-schedules에 없는 경우)
     const isOngoingDay = ongoingClockIn && ongoingClockIn.date === date && workBlocks.length === 0;
+    const ongoingRestRanges: { start: string; end: string }[] = [];
     if (isOngoingDay) {
       hasActual = true;
       ongoing = true;
       clockIn = tsToHM(ongoingClockIn!.startTs);
       grossMin = Math.round((Date.now() - ongoingClockIn!.startTs) / 60_000);
+      // 휴게시간 처리
+      for (const r of ongoingClockIn!.restRanges) {
+        const now = Date.now();
+        if (r.startTs < now) {
+          const effectiveEnd = Math.min(r.endTs, now);
+          restMin += Math.round((effectiveEnd - r.startTs) / 60_000);
+          ongoingRestRanges.push({ start: tsToHM(r.startTs), end: tsToHM(effectiveEnd) });
+        }
+      }
     }
 
     const workRanges: { start: string; end: string; remote: boolean }[] = [];
@@ -194,7 +214,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const restRanges: { start: string; end: string }[] = [];
+    const restRanges: { start: string; end: string }[] = [...ongoingRestRanges];
     for (const rb of restBlocks) {
       const rs = rb.value.startTimestamp.timestamp;
       const re = rb.value.endTimestampExclusive?.timestamp;
