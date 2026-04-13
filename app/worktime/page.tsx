@@ -415,7 +415,7 @@ export default function WorktimePage() {
 
         {/* Weekly summary — 별도 섹션 */}
         {data && (
-          <div className="border-t border-gray-100 bg-gray-50/50 py-8 px-8">
+          <div className="border-t border-gray-100 py-8 px-8">
             <div className="flex flex-col items-center gap-3">
               <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight">{fmtDur(totals.rec)}</span>
               <div className="w-full max-w-2xl relative">
