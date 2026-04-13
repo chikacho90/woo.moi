@@ -416,24 +416,25 @@ export default function WorktimePage() {
         {/* Weekly summary — 별도 섹션 */}
         {data && (
           <div className="border-t border-gray-100 py-8 px-8">
-            <div className="flex flex-col items-center gap-3">
-              <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight">{fmtDur(totals.rec)}</span>
-              <div className="w-full max-w-2xl relative">
-                {/* 바 */}
-                <div className="h-[8px] bg-gray-200/80 rounded-full">
-                  <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
-                </div>
-                {/* 목표 마커 라인 */}
-                <div className="absolute top-[-3px] bottom-[-3px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
-                {/* 목표 잔여 — 마커 위치에 */}
-                <span className="absolute text-[11px] font-mono text-gray-400 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "-20px" }}>
-                  -{fmtDur(totals.remT)} ⚑
-                </span>
-                {/* 최대 잔여 — 가장 오른쪽 */}
-                <span className="absolute text-[11px] font-mono text-gray-300 right-0" style={{ top: "-20px" }}>
-                  -{fmtDur(totals.remM)}
-                </span>
+            <div className="w-full max-w-2xl relative" style={{ paddingTop: "24px" }}>
+              {/* 현재 시간 — 바 왼쪽 끝 위 */}
+              <span className="absolute text-[11px] font-mono text-gray-400 left-0" style={{ top: "0" }}>
+                {fmtDur(totals.rec)}
+              </span>
+              {/* 목표 잔여 — 마커 위치 */}
+              <span className="absolute text-[11px] font-mono text-gray-400 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>
+                -{fmtDur(totals.remT)} ⚑
+              </span>
+              {/* 최대 잔여 — 가장 오른쪽 */}
+              <span className="absolute text-[11px] font-mono text-gray-400 right-0" style={{ top: "0" }}>
+                -{fmtDur(totals.remM)}
+              </span>
+              {/* 바 */}
+              <div className="h-[8px] bg-gray-200/80 rounded-full">
+                <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
               </div>
+              {/* 목표 마커 라인 */}
+              <div className="absolute bottom-0 w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "14px" }} />
             </div>
           </div>
         )}
