@@ -345,10 +345,31 @@ export default function WorktimePage() {
                     {ML_HOURS.map((h) => (
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
-                    {isCur && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
-                    {/* plan 바 */}
+                    {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
+                    {/* plan 바 — 클릭으로 편집 */}
                     {!fin && pci != null && pco != null && (
-                      <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded" style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }} />
+                      <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer"
+                        style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
+                        onClick={() => {
+                          const ciInput = prompt("출근 계획 (예: 09:00)", pm.clockIn || "");
+                          if (!ciInput || !/^\d{1,2}:\d{2}$/.test(ciInput)) return;
+                          const coInput = prompt("퇴근 계획 (예: 18:00)", pm.clockOut || "");
+                          if (!coInput || !/^\d{1,2}:\d{2}$/.test(coInput)) return;
+                          const ci = parseHM(ciInput), co = parseHM(coInput);
+                          if (ci != null && co != null && co > ci) updatePlan(dt, ci, co);
+                        }} />
+                    )}
+                    {/* plan 없을 때 — 빈 영역 클릭으로 추가 */}
+                    {!fin && !hasA && pci == null && (
+                      <div className="absolute inset-0 cursor-pointer"
+                        onClick={() => {
+                          const ciInput = prompt("출근 계획 (예: 09:00)");
+                          if (!ciInput || !/^\d{1,2}:\d{2}$/.test(ciInput)) return;
+                          const coInput = prompt("퇴근 계획 (예: 18:00)");
+                          if (!coInput || !/^\d{1,2}:\d{2}$/.test(coInput)) return;
+                          const ci = parseHM(ciInput), co = parseHM(coInput);
+                          if (ci != null && co != null && co > ci) updatePlan(dt, ci, co);
+                        }} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
