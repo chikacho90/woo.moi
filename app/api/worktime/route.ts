@@ -78,9 +78,12 @@ export async function GET(request: Request) {
     "x-flex-aid": flexAid,
   };
 
-  const [schedRes, attrRes] = await Promise.all([
+  const CLOCK_BASE = "https://flex.team/api/v2/time-tracking/work-clock/users";
+
+  const [schedRes, attrRes, clockRes] = await Promise.all([
     fetch(`${FLEX_BASE}/${flexUserId}/work-schedules?${params}`, { headers, cache: "no-store" }),
     fetch(`${FLEX_BASE}/${flexUserId}/work-schedules/date-attributes?${params}`, { headers, cache: "no-store" }),
+    fetch(`${CLOCK_BASE}/${flexUserId}/current-status`, { headers, cache: "no-store" }),
   ]);
 
   if (!schedRes.ok || !attrRes.ok) {
@@ -92,6 +95,22 @@ export async function GET(request: Request) {
 
   const schedData = await schedRes.json();
   const attrData = await attrRes.json();
+
+  // 진행 중 출근 데이터
+  let ongoingClockIn: { date: string; startTs: number; formId: string } | null = null;
+  if (clockRes.ok) {
+    try {
+      const clockData = await clockRes.json();
+      const pack = clockData?.onGoingRecordPack;
+      if (pack?.onGoing && pack?.startRecord?.targetTime) {
+        ongoingClockIn = {
+          date: clockData.targetDate,
+          startTs: pack.startRecord.targetTime,
+          formId: pack.startRecord.customerWorkFormId || "409273",
+        };
+      }
+    } catch {}
+  }
 
   const schedByDate = new Map<string, FlexDaySchedule>(
     (schedData.dailySchedules as FlexDaySchedule[]).map((s) => [s.date, s]),
@@ -130,8 +149,23 @@ export async function GET(request: Request) {
     let hasActual = false;
     let ongoing = false;
 
+    // 진행 중 출근 데이터 주입 (work-schedules에 없는 경우)
+    const isOngoingDay = ongoingClockIn && ongoingClockIn.date === date && workBlocks.length === 0;
+    if (isOngoingDay) {
+      hasActual = true;
+      ongoing = true;
+      clockIn = tsToHM(ongoingClockIn!.startTs);
+      grossMin = Math.round((Date.now() - ongoingClockIn!.startTs) / 60_000);
+    }
+
     const workRanges: { start: string; end: string; remote: boolean }[] = [];
-    if (workBlocks.length > 0) {
+    if (isOngoingDay) {
+      workRanges.push({
+        start: tsToHM(ongoingClockIn!.startTs),
+        end: tsToHM(Date.now()),
+        remote: ongoingClockIn!.formId !== "409273",
+      });
+    } else if (workBlocks.length > 0) {
       hasActual = true;
       // 전체 출퇴근 시간: 첫 블록의 시작 ~ 마지막 블록의 끝
       const firstTs = workBlocks[0].value.startTimestamp.timestamp;
