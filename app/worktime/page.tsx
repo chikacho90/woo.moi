@@ -346,24 +346,20 @@ export default function WorktimePage() {
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200" : "border-l border-gray-50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
-                    {/* plan 바 — 왼쪽 절반 클릭: 출근 변경, 오른쪽 절반 클릭: 퇴근 변경 */}
+                    {/* plan 바 — 클릭시 메뉴 */}
                     {!fin && pci != null && pco != null && (
-                      <>
-                        <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded"
-                          style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }} />
-                        <div className="absolute top-0 bottom-0 cursor-pointer z-[3]"
-                          style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.3, (mlPct(pco) - mlPct(pci)) / 2)}%` }}
-                          onClick={() => {
-                            const v = prompt("출근 계획 변경 (예: 09:00)", pm.clockIn || "");
+                      <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer z-[3]"
+                        style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
+                        onClick={() => {
+                          const choice = prompt("1: 출근 변경\n2: 퇴근 변경\n3: 삭제\n\n번호 입력:", "");
+                          if (choice === "1") {
+                            const v = prompt("출근 계획 (예: 09:00)", pm.clockIn || "");
                             if (v && /^\d{1,2}:\d{2}$/.test(v)) { const ci = parseHM(v); if (ci != null && pco > ci) updatePlan(dt, ci, pco); }
-                          }} />
-                        <div className="absolute top-0 bottom-0 cursor-pointer z-[3]"
-                          style={{ left: `${mlPct(pci) + (mlPct(pco) - mlPct(pci)) / 2}%`, width: `${Math.max(0.3, (mlPct(pco) - mlPct(pci)) / 2)}%` }}
-                          onClick={() => {
-                            const v = prompt("퇴근 계획 변경 (예: 18:00)", pm.clockOut || "");
+                          } else if (choice === "2") {
+                            const v = prompt("퇴근 계획 (예: 18:00)", pm.clockOut || "");
                             if (v && /^\d{1,2}:\d{2}$/.test(v)) { const co = parseHM(v); if (co != null && co > pci) updatePlan(dt, pci, co); }
-                          }} />
-                      </>
+                          } else if (choice === "3") { clearPlan(dt); }
+                        }} />
                     )}
                     {/* plan 없을 때 — 빈 영역 클릭으로 추가 */}
                     {!fin && !hasA && pci == null && (
