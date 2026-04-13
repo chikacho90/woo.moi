@@ -247,7 +247,7 @@ export default function WorktimePage() {
       <div className="max-w-[100vw] mx-auto">
 
         {/* ─── Header ─── */}
-        <div className="flex items-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
+        <div className="flex items-center justify-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
           {/* Week selector — 하나의 pill 안에 화살표+날짜 */}
           <div className="relative flex items-center border border-gray-200 rounded-full overflow-hidden">
             <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 text-lg border-r border-gray-200">‹</button>
@@ -399,26 +399,6 @@ export default function WorktimePage() {
           </div>
         </div>
 
-        {/* Weekly summary */}
-        {data && (
-          <div className="flex flex-col items-center py-6 gap-1">
-            <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-gray-400">
-              <span>-{fmtDur(totals.remT)}</span>
-              <span className="text-gray-300">⚑</span>
-              <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
-              <div className="w-48 relative">
-                <div className="h-[7px] bg-gray-100 rounded-full">
-                  <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
-                </div>
-                <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Legend */}
         <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400">
           <div className="flex gap-3">
@@ -430,6 +410,28 @@ export default function WorktimePage() {
           </div>
           <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 hover:text-red-400">계획 리셋</button>
         </div>
+
+        {/* Weekly summary — 별도 섹션 */}
+        {data && (
+          <div className="border-t border-gray-100 bg-gray-50/50 py-8">
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-gray-400">
+                <span>-{fmtDur(totals.remT)}</span>
+                <span className="text-gray-300">⚑</span>
+                <span className="text-gray-300">-{fmtDur(totals.remM)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold font-mono text-gray-500 tracking-tight leading-none">{fmtDur(totals.rec)}</span>
+                <div className="w-48 relative">
+                  <div className="h-[7px] bg-gray-200/80 rounded-full">
+                    <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                  </div>
+                  <div className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
