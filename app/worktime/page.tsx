@@ -310,7 +310,19 @@ export default function WorktimePage() {
               const isWe = di === 0 || di === 6;
               const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
               const isOt = rec > DAILY_TARGET_MIN;
-              const pm = mergeDay(undefined, pd, dt);
+              let pm = mergeDay(undefined, pd, dt);
+              // 오늘 + actual 출근시간이 있으면 계획 시작시간을 actual에 맞춤
+              if (isT && hasA && ad!.clockIn && pm.clockIn) {
+                const actualCi = parseHM(ad!.clockIn);
+                const planCi = parseHM(pm.clockIn);
+                const planCo = parseHM(pm.clockOut);
+                if (actualCi != null && planCi != null && actualCi !== planCi && planCo != null) {
+                  const dur = planCo - planCi;
+                  const newCo = actualCi + dur;
+                  const newPlan = { ...pd, clockIn: fmtHM(actualCi), clockOut: fmtHM(Math.min(newCo, TL_END)) };
+                  pm = mergeDay(undefined, newPlan, dt);
+                }
+              }
               const am: MergedDay | null = hasA ? { date: dt, weeklyHoliday: ad!.weeklyHoliday || false, clockIn: ad!.clockIn, clockOut: ad!.clockOut, workMin: ad!.workMin, restMin: ad!.restMin, timeOffMin: ad!.timeOffMin, hasActual: true, ongoing: ong, source: "actual", workRanges: ad!.workRanges, restRanges: ad!.restRanges, timeOffRanges: ad!.timeOffRanges } : null;
 
               return (
