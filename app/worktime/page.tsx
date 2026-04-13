@@ -265,29 +265,52 @@ export default function WorktimePage() {
   // 모바일 바텀시트
   const [sheet, setSheet] = useState<{ date: string; ci: number; co: number } | null>(null);
 
+  // 테마 모드: light → dark → system → light
+  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("light");
+  useEffect(() => {
+    const saved = localStorage.getItem("worktime-theme") as "light" | "dark" | "system" | null;
+    if (saved) setThemeMode(saved);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("worktime-theme", themeMode);
+    const root = document.documentElement;
+    if (themeMode === "dark") root.classList.add("dark");
+    else if (themeMode === "light") root.classList.remove("dark");
+    else {
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) root.classList.add("dark");
+      else root.classList.remove("dark");
+    }
+  }, [themeMode]);
+  function cycleTheme() {
+    setThemeMode((m) => m === "light" ? "dark" : m === "dark" ? "system" : "light");
+  }
+  const themeIcon = themeMode === "light" ? "☀️" : themeMode === "dark" ? "🌙" : "💻";
+
   return (
-    <div className="min-h-screen bg-white text-gray-900" onClick={() => calOpen && setCalOpen(false)}>
+    <div className="min-h-screen bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
       <div className="max-w-[100vw] mx-auto">
 
         {/* ─── Title ─── */}
-        <div className="px-4 py-3 border-b border-gray-100 text-center">
-          <h1 className="text-lg font-semibold text-gray-900">Weekly Work Plan</h1>
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-center">
+          <h1 className="text-lg font-semibold">Weekly Work Plan</h1>
         </div>
 
         {/* ─── Nav ─── */}
-        <div className="relative flex items-center justify-center px-4 py-2.5 sticky top-0 bg-white z-20 border-b border-gray-100">
+        <div className="relative flex items-center justify-center px-4 py-2.5 sticky top-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
           {/* 오늘 — 왼쪽 고정 */}
-          <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 hover:text-gray-800 border border-gray-200 rounded px-2.5 py-1">오늘</button>
+          <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1">오늘</button>
           {/* Week selector — 가운데 */}
-          <div className="relative flex items-center border border-gray-200 rounded-full overflow-hidden">
-            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 text-lg border-r border-gray-200">‹</button>
+          <div className="relative flex items-center border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden">
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 text-lg border-r border-gray-200 dark:border-gray-700">‹</button>
             <button onClick={(e) => { e.stopPropagation(); setCalOpen(!calOpen); }}
-              className="text-sm text-gray-700 px-5 py-2 hover:bg-gray-50 font-medium min-w-[150px] text-center">
+              className="text-sm text-gray-700 dark:text-gray-300 px-5 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 font-medium min-w-[150px] text-center">
               {data ? fmtWeekRange(data.weekFrom, data.weekTo) : "..."}
             </button>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 text-lg border-l border-gray-200">›</button>
+            <button onClick={() => setWeekOffset(weekOffset + 1)} className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-600 text-lg border-l border-gray-200 dark:border-gray-700">›</button>
             {calOpen && data && <CalendarPopup weekFrom={data.weekFrom} onSelect={goToDate} onClose={() => setCalOpen(false)} />}
           </div>
+          {/* 테마 토글 — 오른쪽 고정 */}
+          <button onClick={cycleTheme} className="absolute right-4 text-sm" title={themeMode}>{themeIcon}</button>
         </div>
 
         {error && <div className="mx-4 my-2 p-2 bg-red-50 text-red-500 rounded text-xs border border-red-100">{error}</div>}
