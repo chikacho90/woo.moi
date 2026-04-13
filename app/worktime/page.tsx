@@ -386,11 +386,9 @@ export default function WorktimePage() {
                         {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
                         {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
                       </div>
-                    ) : isT && todayClockIn && !hasA ? (
-                      <div className="relative text-[10px] text-amber-500 mt-0.5 h-4">
-                        <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(todayClockIn)!)}%` }}>{fmtAmPm(todayClockIn)}</span>
-                      </div>
-                    ) : pm.clockIn && pm.clockOut && (
+                    ) : null}
+                    {/* plan 라벨 — actual 여부와 무관하게 plan이 있으면 표시 */}
+                    {!fin && pm.clockIn && pm.clockOut && (
                       <div className="relative text-[10px] text-blue-400 mt-0.5 h-4">
                         <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
                         <span className="absolute whitespace-nowrap" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
