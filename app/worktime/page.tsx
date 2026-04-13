@@ -236,7 +236,15 @@ export default function WorktimePage() {
   const dates = useMemo(() => data ? weekDates(data.weekFrom, data.weekTo) : [], [data]);
   const byDate = useMemo(() => data ? new Map(data.days.map((d) => [d.date, d])) : new Map<string, DayRec>(), [data]);
   const merged = useMemo(() => data ? dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt)) : [], [data, dates, plans, byDate]);
-  const totals = useMemo(() => { let r = 0; for (const d of merged) if (d.source === "actual") r += recMin(d); return { rec: r, remT: Math.max(0, WEEK_REQUIRED_MIN - r), remM: Math.max(0, WEEK_MAX_MIN - r) }; }, [merged]);
+  const totals = useMemo(() => {
+    let actual = 0, planned = 0;
+    for (const d of merged) {
+      if (d.source === "actual") actual += recMin(d);
+      else if (d.source === "plan") planned += recMin(d);
+    }
+    const total = actual + planned;
+    return { rec: actual, planned, total, remT: Math.max(0, WEEK_REQUIRED_MIN - total), remM: Math.max(0, WEEK_MAX_MIN - total) };
+  }, [merged]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -429,12 +437,17 @@ export default function WorktimePage() {
               <span className="absolute text-[11px] font-mono text-gray-400 right-0" style={{ top: "0" }}>
                 -{fmtDur(totals.remM)}
               </span>
-              {/* 바 */}
-              <div className="h-[8px] bg-gray-200/80 rounded-full">
-                <div className="h-full bg-teal-400/80 rounded-full transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+              {/* 바 — 타임라인과 동일한 두께 */}
+              <div className="relative h-[30px] bg-gray-100 rounded overflow-hidden">
+                {/* 계획 (뒤) */}
+                {totals.planned > 0 && (
+                  <div className="absolute top-0 bottom-0 bg-blue-300/50 rounded" style={{ left: `${(totals.rec / WEEK_MAX_MIN) * 100}%`, width: `${Math.min(100 - (totals.rec / WEEK_MAX_MIN) * 100, (totals.planned / WEEK_MAX_MIN) * 100)}%` }} />
+                )}
+                {/* 실제 근무 (앞) */}
+                <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
               </div>
               {/* 목표 마커 라인 */}
-              <div className="absolute bottom-0 w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "14px" }} />
+              <div className="absolute bottom-0 w-[2px] bg-gray-300" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "36px" }} />
             </div>
           </div>
         )}
