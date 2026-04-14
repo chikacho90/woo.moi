@@ -358,8 +358,8 @@ export default function WorktimePage() {
   const themeIcon = themeMode === "light" ? "☀️" : themeMode === "dark" ? "🌙" : "💻";
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
-      <div className="max-w-[100vw] mx-auto">
+    <div className="h-[100dvh] overflow-hidden bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
+      <div className="max-w-[100vw] mx-auto h-full overflow-hidden">
 
         {/* ─── Title ─── */}
         <div className="px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 text-center">
