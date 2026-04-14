@@ -415,7 +415,10 @@ export default function WorktimePage() {
                   <div className="relative text-[9px] mt-0.5 h-3">
                     {hasA && ad!.clockIn && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
                     {hasA && ad!.clockOut && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
-                    {!fin && pm.clockOut && !(hasA && ad!.clockIn === pm.clockIn) && (
+                    {!fin && pm.clockIn && !hasA && (
+                      <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
+                    )}
+                    {!fin && pm.clockOut && !(hasA && ad!.clockOut === pm.clockOut) && (
                       <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                     )}
                   </div>
