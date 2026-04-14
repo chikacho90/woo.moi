@@ -622,33 +622,30 @@ export default function WorktimePage() {
           <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-600 hover:text-red-400">계획 리셋</button>
         </div>
 
-        {/* Weekly summary — 별도 섹션 */}
+        {/* Weekly summary — 실제/계획 분리 */}
         {data && (
           <div className="border-t border-gray-100 dark:border-gray-800 py-4 px-8 flex justify-center">
-            <div className="w-full max-w-2xl relative" style={{ paddingTop: "24px" }}>
-              {/* 현재 시간 — 바 왼쪽 끝 위 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 left-0" style={{ top: "0" }}>
-                {fmtDur(totals.rec)}
-              </span>
-              {/* 목표 잔여 — 마커 위치 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>
-                -{fmtDur(totals.remT)} ⚑
-              </span>
-              {/* 최대 잔여 — 가장 오른쪽 */}
-              <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 right-0" style={{ top: "0" }}>
-                -{fmtDur(totals.remM)}
-              </span>
-              {/* 바 — 타임라인과 동일한 두께 */}
-              <div className="relative h-[30px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
-                {/* 계획 (뒤) */}
-                {totals.planned > 0 && (
-                  <div className="absolute top-0 bottom-0 bg-blue-300/50 rounded" style={{ left: `${(totals.rec / WEEK_MAX_MIN) * 100}%`, width: `${Math.min(100 - (totals.rec / WEEK_MAX_MIN) * 100, (totals.planned / WEEK_MAX_MIN) * 100)}%` }} />
-                )}
-                {/* 실제 근무 (앞) */}
-                <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+            <div className="w-full max-w-2xl space-y-2">
+              {/* 실제 근무 */}
+              <div className="relative" style={{ paddingTop: "16px" }}>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>⚑</span>
+                <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
+                  <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                </div>
+                <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
-              {/* 목표 마커 라인 */}
-              <div className="absolute bottom-0 w-[2px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "36px" }} />
+              {/* 계획 (실제+계획 합산) */}
+              <div className="relative" style={{ paddingTop: "16px" }}>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.total)} <span className="text-gray-300 dark:text-gray-600">(잔여 -{fmtDur(totals.remT)})</span></span>
+                <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
+                  <div className="absolute top-0 bottom-0 bg-amber-300/40 rounded-l" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
+                  {totals.planned > 0 && (
+                    <div className="absolute top-0 bottom-0 bg-blue-300/50 rounded" style={{ left: `${(totals.rec / WEEK_MAX_MIN) * 100}%`, width: `${Math.min(100 - (totals.rec / WEEK_MAX_MIN) * 100, (totals.planned / WEEK_MAX_MIN) * 100)}%` }} />
+                  )}
+                </div>
+                <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
+              </div>
             </div>
           </div>
         )}
