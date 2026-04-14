@@ -262,17 +262,13 @@ export default function WorktimePage() {
           // 확정된 날: 실제 시간이 계획을 대체
           planProjected += recMin(d);
         } else if (d.ongoing && pd) {
-          // 근무 중: 계획을 실제 출근시간 기준으로 조정
+          // 근무 중: 계획 recMin 기본, 실제 출근이 늦으면 차이만큼 깎음
           const planDay = mergeDay(undefined, pd, dt);
-          const planCi = parseHM(pd.clockIn), planCo = parseHM(pd.clockOut);
+          const planCi = parseHM(pd.clockIn);
           const actualCi = ad ? parseHM(ad.clockIn) : null;
-          if (actualCi != null && planCi != null && planCo != null) {
-            const rest = restOverlap(actualCi, planCo);
-            const adjWork = Math.max(0, planCo - actualCi - rest);
-            planProjected += Math.min(adjWork, WORK_CAP_MIN) + (planDay.timeOffMin || 0);
-          } else {
-            planProjected += recMin(planDay);
-          }
+          const planBase = recMin(planDay);
+          const lateDiff = (actualCi != null && planCi != null && actualCi > planCi) ? (actualCi - planCi) : 0;
+          planProjected += Math.max(0, planBase - lateDiff);
         } else {
           // ongoing이지만 계획 없음: 실제 시간 사용
           planProjected += recMin(d);
@@ -299,17 +295,16 @@ export default function WorktimePage() {
       if (isWe || d.weeklyHoliday) continue;
       const settled = isFinal(d) || (d.source === "plan") || (d.source === "actual" && d.ongoing && pd);
       if (settled) {
-        settledTotal += recMin(d);
-        // settled인데 ongoing+계획 있는 날은 계획 기준 시간 사용
         if (d.source === "actual" && d.ongoing && pd) {
+          // ongoing+계획: 계획 recMin 기준, 늦은 만큼 깎음
           const planDay = mergeDay(undefined, pd, dt);
-          const planCi = parseHM(pd.clockIn), planCo = parseHM(pd.clockOut);
+          const planCi = parseHM(pd.clockIn);
           const actualCi = ad ? parseHM(ad.clockIn) : null;
-          if (actualCi != null && planCi != null && planCo != null) {
-            const rest = restOverlap(actualCi, planCo);
-            const adjWork = Math.max(0, planCo - actualCi - rest);
-            settledTotal += Math.min(adjWork, WORK_CAP_MIN) + (planDay.timeOffMin || 0) - recMin(d);
-          }
+          const planBase = recMin(planDay);
+          const lateDiff = (actualCi != null && planCi != null && actualCi > planCi) ? (actualCi - planCi) : 0;
+          settledTotal += Math.max(0, planBase - lateDiff);
+        } else {
+          settledTotal += recMin(d);
         }
       } else {
         // 미확정: 빈 날이거나 ongoing인데 계획 없는 날
@@ -714,7 +709,7 @@ export default function WorktimePage() {
               {(() => { const diff = totals.rec - WEEK_REQUIRED_MIN; return (
               <div className="relative" style={{ paddingTop: "16px" }}>
                 <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
-                <span className={`absolute text-[10px] font-mono right-0 top-0 ${diff >= 0 ? "text-green-500" : "text-gray-400 dark:text-gray-500"}`}>
+                <span className={`absolute text-[10px] font-mono right-0 top-0 ${diff >= 0 ? "text-green-500" : "text-red-400"}`}>
                   {diff >= 0 ? "+" : "-"}{fmtDur(Math.abs(diff))}
                 </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
@@ -725,7 +720,7 @@ export default function WorktimePage() {
               {/* 계획 */}
               <div className="relative" style={{ paddingTop: "16px" }}>
                 <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
-                <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-gray-400 dark:text-gray-500"}`}>
+                <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-red-400"}`}>
                   {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
