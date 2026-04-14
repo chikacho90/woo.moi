@@ -288,44 +288,64 @@ export default function WorktimePage() {
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
   const dayHints = useMemo(() => {
     const hints: Record<string, { type: "avg"; min: number } | { type: "depart"; time: number }> = {};
-    // 비어있는 평일 찾기 + 이미 확보된 시간 합산
-    let filled = 0;
-    const emptyDays: string[] = [];
-    for (let i = 0; i < merged.length; i++) {
-      const d = merged[i], dt = dates[i];
-      const di = new Date(dt + "T00:00:00+09:00").getDay();
-      const isWe = di === 0 || di === 6;
-      if (isWe || d.weeklyHoliday) continue;
-      if (d.source === "empty") { emptyDays.push(dt); }
-      else { filled += recMin(d); }
-    }
-    const remaining = Math.max(0, WEEK_REQUIRED_MIN - filled);
-    const avgPerDay = emptyDays.length > 0 ? Math.ceil(remaining / emptyDays.length) : 0;
-    for (const dt of emptyDays) hints[dt] = { type: "avg", min: avgPerDay };
-    // 블록이 있는 날: 퇴근 예상시간
+    // 확정(settled): 최종 확정 또는 계획이 있는 날 → 시간 고정
+    // 미확정(unsettled): 빈 날 또는 ongoing인데 계획 없는 날 → 평균 배분 대상
+    let settledTotal = 0;
+    const unsettledDays: { dt: string; idx: number; ci: number | null }[] = [];
     for (let i = 0; i < merged.length; i++) {
       const d = merged[i], dt = dates[i], ad = byDate.get(dt), pd = plans[dt];
-      if (d.source === "empty") continue;
       const di = new Date(dt + "T00:00:00+09:00").getDay();
       const isWe = di === 0 || di === 6;
       if (isWe || d.weeklyHoliday) continue;
-      if (isFinal(d)) continue; // 이미 확정
-      // 이 날에 필요한 시간 = 다른 날 다 채우고 남은 것 기준
-      let othersTotal = 0;
-      for (let j = 0; j < merged.length; j++) {
-        if (j === i) continue;
-        const od = merged[j];
-        if (od.source !== "empty") othersTotal += recMin(od);
+      const settled = isFinal(d) || (d.source === "plan") || (d.source === "actual" && d.ongoing && pd);
+      if (settled) {
+        settledTotal += recMin(d);
+        // settled인데 ongoing+계획 있는 날은 계획 기준 시간 사용
+        if (d.source === "actual" && d.ongoing && pd) {
+          const planDay = mergeDay(undefined, pd, dt);
+          const planCi = parseHM(pd.clockIn), planCo = parseHM(pd.clockOut);
+          const actualCi = ad ? parseHM(ad.clockIn) : null;
+          if (actualCi != null && planCi != null && planCo != null) {
+            const rest = restOverlap(actualCi, planCo);
+            const adjWork = Math.max(0, planCo - actualCi - rest);
+            settledTotal += Math.min(adjWork, WORK_CAP_MIN) + (planDay.timeOffMin || 0) - recMin(d);
+          }
+        }
+      } else {
+        // 미확정: 빈 날이거나 ongoing인데 계획 없는 날
+        let ci: number | null = null;
+        if (ad?.hasActual && ad.clockIn) ci = parseHM(ad.clockIn);
+        unsettledDays.push({ dt, idx: i, ci });
       }
-      const needThis = Math.max(0, WEEK_REQUIRED_MIN - othersTotal);
-      // 출근시간 기준 퇴근시간 계산
-      let ci: number | null = null;
-      if (ad?.hasActual && ad.clockIn) ci = parseHM(ad.clockIn);
-      else if (pd?.clockIn) ci = parseHM(pd.clockIn);
-      if (ci != null && needThis > 0) {
-        const rest = needThis > 0 ? restOverlap(ci, ci + needThis + 60) : 0;
-        const depart = ci + needThis + rest - (d.timeOffMin || 0);
+    }
+    const remaining = Math.max(0, WEEK_REQUIRED_MIN - settledTotal);
+    const avgPerDay = unsettledDays.length > 0 ? Math.ceil(remaining / unsettledDays.length) : 0;
+    for (const { dt, ci } of unsettledDays) {
+      if (ci != null) {
+        // 출근한 날: 평균 필요시간 기준 퇴근 예상
+        const rest = restOverlap(ci, ci + avgPerDay + 60);
+        const depart = ci + avgPerDay + rest;
         hints[dt] = { type: "depart", time: depart };
+      } else {
+        hints[dt] = { type: "avg", min: avgPerDay };
+      }
+    }
+    // 계획이 있는 미확정 날(ongoing+plan): 퇴근 예상시간
+    for (let i = 0; i < merged.length; i++) {
+      const d = merged[i], dt = dates[i], ad = byDate.get(dt), pd = plans[dt];
+      if (!d.ongoing || !pd || isFinal(d)) continue;
+      const di = new Date(dt + "T00:00:00+09:00").getDay();
+      const isWe = di === 0 || di === 6;
+      if (isWe || d.weeklyHoliday) continue;
+      const planCo = parseHM(pd.clockOut);
+      const actualCi = ad ? parseHM(ad.clockIn) : null;
+      const planCi = parseHM(pd.clockIn);
+      if (actualCi != null && planCi != null && planCo != null && actualCi !== planCi) {
+        // 출근시간 차이만큼 퇴근시간 조정
+        const depart = planCo + (actualCi - planCi);
+        hints[dt] = { type: "depart", time: depart };
+      } else if (planCo != null) {
+        hints[dt] = { type: "depart", time: planCo };
       }
     }
     return hints;
