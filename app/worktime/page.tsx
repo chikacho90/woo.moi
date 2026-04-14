@@ -490,10 +490,10 @@ export default function WorktimePage() {
                     )}
                     {/* plan 반차/반반차 timeOff 바 */}
                     {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`pt${j}`} className="absolute top-0 bottom-0 bg-purple-300/60 rounded z-[2]" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
-                    {/* plan 없을 때 — 탭하면 새 계획 바텀시트 */}
-                    {!fin && !hasA && pci == null && pd?.timeOffType !== "full" && (
-                      <div className="absolute inset-0 cursor-pointer"
-                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType })} />
+                    {/* plan 없을 때 — 탭하면 새 계획 바텀시트 (ongoing도 허용) */}
+                    {!fin && (!hasA || ong) && pci == null && pd?.timeOffType !== "full" && (
+                      <div className="absolute inset-0 cursor-pointer z-[1]"
+                        onClick={() => setSheet({ date: dt, ci: aci ?? 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType })} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
@@ -608,9 +608,9 @@ export default function WorktimePage() {
                         {pd?.timeOffType ? PLAN_TO_LABELS[pd.timeOffType] : fmtDur(rec)}{isOt ? " 🔥" : ""}
                       </span>
                     )}
-                    {/* 휴가 설정 버튼 — actual 없고 확정 안 된 날 */}
-                    {!fin && !hasA && (
-                      <button onClick={() => setSheet({ date: dt, ci: parseHM(pm.clockIn) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType })}
+                    {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
+                    {!fin && (!hasA || ong) && (
+                      <button onClick={() => setSheet({ date: dt, ci: parseHM(pm.clockIn) ?? (ad?.clockIn ? parseHM(ad.clockIn) : null) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType })}
                         className={`text-[10px] whitespace-nowrap rounded px-1 py-0.5 ${pd?.timeOffType ? "bg-purple-100 dark:bg-purple-950/30 text-purple-500 border border-purple-200 dark:border-purple-700" : "text-gray-300 dark:text-gray-600 hover:text-purple-400"}`}>
                         {pd?.timeOffType ? "휴" : "+휴"}
                       </button>
