@@ -282,8 +282,8 @@ export default function WorktimePage() {
   }, [merged, plans, dates, byDate]);
 
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
-  const dayHints = useMemo(() => {
-    const hints: Record<string, { type: "avg"; min: number } | { type: "depart"; time: number }> = {};
+  const { hints: dayHints, avgPerDay: avgNeedPerDay } = useMemo(() => {
+    const hints: Record<string, { type: "avg"; min: number }> = {};
     // 확정(settled): 최종 확정 또는 계획이 있는 날 → 시간 고정
     // 미확정(unsettled): 빈 날 또는 ongoing인데 계획 없는 날 → 평균 배분 대상
     let settledTotal = 0;
@@ -315,35 +315,10 @@ export default function WorktimePage() {
     }
     const remaining = Math.max(0, WEEK_REQUIRED_MIN - settledTotal);
     const avgPerDay = unsettledDays.length > 0 ? Math.ceil(remaining / unsettledDays.length) : 0;
-    for (const { dt, ci } of unsettledDays) {
-      if (ci != null) {
-        // 출근한 날: 평균 필요시간 기준 퇴근 예상
-        const rest = restOverlap(ci, ci + avgPerDay + 60);
-        const depart = ci + avgPerDay + rest;
-        hints[dt] = { type: "depart", time: depart };
-      } else {
-        hints[dt] = { type: "avg", min: avgPerDay };
-      }
+    for (const { dt } of unsettledDays) {
+      hints[dt] = { type: "avg", min: avgPerDay };
     }
-    // 계획이 있는 미확정 날(ongoing+plan): 퇴근 예상시간
-    for (let i = 0; i < merged.length; i++) {
-      const d = merged[i], dt = dates[i], ad = byDate.get(dt), pd = plans[dt];
-      if (!d.ongoing || !pd || isFinal(d)) continue;
-      const di = new Date(dt + "T00:00:00+09:00").getDay();
-      const isWe = di === 0 || di === 6;
-      if (isWe || d.weeklyHoliday) continue;
-      const planCo = parseHM(pd.clockOut);
-      const actualCi = ad ? parseHM(ad.clockIn) : null;
-      const planCi = parseHM(pd.clockIn);
-      if (actualCi != null && planCi != null && planCo != null && actualCi !== planCi) {
-        // 출근시간 차이만큼 퇴근시간 조정
-        const depart = planCo + (actualCi - planCi);
-        hints[dt] = { type: "depart", time: depart };
-      } else if (planCo != null) {
-        hints[dt] = { type: "depart", time: planCo };
-      }
-    }
-    return hints;
+    return { hints, avgPerDay };
   }, [merged, dates, byDate, plans]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -359,7 +334,7 @@ export default function WorktimePage() {
   }, []);
 
   // 모바일 바텀시트
-  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number; timeOffType?: PlanTimeOffType; lockedCi?: boolean } | null>(null);
+  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number; timeOffType?: PlanTimeOffType; lockedCi?: boolean; suggestedCo?: boolean } | null>(null);
 
   // 테마 모드: light → dark → system → light
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("light");
@@ -488,7 +463,7 @@ export default function WorktimePage() {
                     {/* plan 없을 때 — 탭하면 새 계획 바텀시트 (ongoing도 허용) */}
                     {!fin && (!hasA || ong) && pci == null && pd?.timeOffType !== "full" && (
                       <div className="absolute inset-0 cursor-pointer z-[1]"
-                        onClick={() => setSheet({ date: dt, ci: aci ?? 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType, lockedCi: ong })} />
+                        onClick={() => { const ci0 = aci ?? 9 * 60; const rest = restOverlap(ci0, ci0 + avgNeedPerDay + 60); setSheet({ date: dt, ci: ci0, co: ci0 + avgNeedPerDay + rest, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: true }); }} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
@@ -514,7 +489,7 @@ export default function WorktimePage() {
                       return <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse" style={{ left: `${mlPct(ci)}%`, width: `${Math.max(0.3, mlPct(nowMin) - mlPct(ci))}%` }} />;
                     })()}
                     {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                    {(() => { const h = dayHints[dt]; if (!h) return null; if (h.type === "avg") return <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(h.min)} 필요</span>; return <span className="absolute right-1 top-0 bottom-0 flex items-center text-[10px] text-green-500 dark:text-green-400 pointer-events-none z-[5]">{fmtAmPm(fmtHM(h.time))} 퇴근</span>; })()}
+                    {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
                   </div>
                   {/* 라벨 */}
                   <div className="relative text-[9px] mt-0.5 h-3">
@@ -605,7 +580,7 @@ export default function WorktimePage() {
                     )}
                     {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
                     {!fin && (!hasA || ong) && (
-                      <button onClick={() => setSheet({ date: dt, ci: (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType, lockedCi: ong })}
+                      <button onClick={() => { const ci0 = (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn) ?? 9 * 60; const hasPlan = pm.clockOut != null; const co0 = parseHM(pm.clockOut) ?? (() => { const r = restOverlap(ci0, ci0 + avgNeedPerDay + 60); return ci0 + avgNeedPerDay + r; })(); setSheet({ date: dt, ci: ci0, co: co0, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: !hasPlan }); }}
                         className={`text-[10px] whitespace-nowrap rounded px-1 py-0.5 ${pd?.timeOffType ? "bg-purple-100 dark:bg-purple-950/30 text-purple-500 border border-purple-200 dark:border-purple-700" : "text-gray-300 dark:text-gray-600 hover:text-purple-400"}`}>
                         {pd?.timeOffType ? "휴" : "+휴"}
                       </button>
@@ -648,7 +623,7 @@ export default function WorktimePage() {
                         </>
                       )}
                       {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                      {(() => { const h = dayHints[dt]; if (!h) return null; if (h.type === "avg") return <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(h.min)} 필요</span>; return <span className="absolute right-2 top-0 bottom-0 flex items-center text-[11px] text-green-500 dark:text-green-400 pointer-events-none z-[5]">{fmtAmPm(fmtHM(h.time))} 퇴근</span>; })()}
+                      {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
                     </div>
 
                     {/* 라벨: 한 줄에 actual + plan 합침 */}
@@ -766,7 +741,8 @@ export default function WorktimePage() {
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
                     <input type="time" defaultValue={fmtHM(sheet.co)}
                       className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
-                      onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v }); }} />
+                      onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v, suggestedCo: false }); }} />
+                    {sheet.suggestedCo && <span className="text-[11px] text-green-500 whitespace-nowrap">퇴근 가능</span>}
                   </div>
                 </div>
               )}
