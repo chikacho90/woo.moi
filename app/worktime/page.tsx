@@ -253,23 +253,37 @@ export default function WorktimePage() {
   const byDate = useMemo(() => data ? new Map(data.days.map((d) => [d.date, d])) : new Map<string, DayRec>(), [data]);
   const merged = useMemo(() => data ? dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt)) : [], [data, dates, plans, byDate]);
   const totals = useMemo(() => {
-    let actual = 0, planned = 0;
-    for (const d of merged) {
+    let actual = 0, planProjected = 0;
+    for (let i = 0; i < merged.length; i++) {
+      const d = merged[i], dt = dates[i], pd = plans[dt], ad = byDate.get(dt);
       if (d.source === "actual") {
         actual += recMin(d);
-        // ongoing(근무 중)인 오늘에 계획이 있으면, 계획 잔여분을 planned에 반영
-        if (d.ongoing && plans[d.date]) {
-          const planDay = mergeDay(undefined, plans[d.date], d.date);
-          const planTotal = recMin(planDay);
-          const diff = planTotal - recMin(d);
-          if (diff > 0) planned += diff;
+        if (isFinal(d)) {
+          // 확정된 날: 실제 시간이 계획을 대체
+          planProjected += recMin(d);
+        } else if (d.ongoing && pd) {
+          // 근무 중: 계획을 실제 출근시간 기준으로 조정
+          const planDay = mergeDay(undefined, pd, dt);
+          const planCi = parseHM(pd.clockIn), planCo = parseHM(pd.clockOut);
+          const actualCi = ad ? parseHM(ad.clockIn) : null;
+          if (actualCi != null && planCi != null && planCo != null) {
+            const rest = restOverlap(actualCi, planCo);
+            const adjWork = Math.max(0, planCo - actualCi - rest);
+            planProjected += Math.min(adjWork, WORK_CAP_MIN) + (planDay.timeOffMin || 0);
+          } else {
+            planProjected += recMin(planDay);
+          }
+        } else {
+          // ongoing이지만 계획 없음: 실제 시간 사용
+          planProjected += recMin(d);
         }
+      } else if (d.source === "plan") {
+        planProjected += recMin(d);
       }
-      else if (d.source === "plan") planned += recMin(d);
     }
-    const total = actual + planned;
-    return { rec: actual, planned, total, remT: Math.max(0, WEEK_REQUIRED_MIN - total), remM: Math.max(0, WEEK_MAX_MIN - total) };
-  }, [merged, plans]);
+    const planDiff = planProjected - WEEK_REQUIRED_MIN;
+    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff };
+  }, [merged, plans, dates, byDate]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -629,20 +643,20 @@ export default function WorktimePage() {
               {/* 실제 근무 */}
               <div className="relative" style={{ paddingTop: "16px" }}>
                 <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 -translate-x-1/2" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, top: "0" }}>⚑</span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 right-0 top-0">잔여 -{fmtDur(totals.recRem)}</span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
                   <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
-              {/* 계획 (실제+계획 합산) */}
+              {/* 계획 */}
               <div className="relative" style={{ paddingTop: "16px" }}>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.total)} <span className="text-gray-300 dark:text-gray-600">(잔여 -{fmtDur(totals.remT)})</span></span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
+                <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-red-400"}`}>
+                  목표 {totals.planDiff >= 0 ? "+" : ""}{fmtDur(totals.planDiff)}
+                </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
-                  <div className="absolute top-0 bottom-0 bg-amber-300/40 rounded-l" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
-                  {totals.planned > 0 && (
-                    <div className="absolute top-0 bottom-0 bg-blue-300/50 rounded" style={{ left: `${(totals.rec / WEEK_MAX_MIN) * 100}%`, width: `${Math.min(100 - (totals.rec / WEEK_MAX_MIN) * 100, (totals.planned / WEEK_MAX_MIN) * 100)}%` }} />
-                  )}
+                  <div className="absolute top-0 bottom-0 bg-blue-300/60 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.planProjected / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
