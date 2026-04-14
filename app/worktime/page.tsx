@@ -711,19 +711,22 @@ export default function WorktimePage() {
           <div className="border-t border-gray-100 dark:border-gray-800 py-4 px-8 flex justify-center">
             <div className="w-full max-w-2xl space-y-2">
               {/* 실제 근무 */}
+              {(() => { const diff = totals.rec - WEEK_REQUIRED_MIN; return (
               <div className="relative" style={{ paddingTop: "16px" }}>
                 <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 right-0 top-0">잔여 -{fmtDur(totals.recRem)}</span>
+                <span className={`absolute text-[10px] font-mono right-0 top-0 ${diff >= 0 ? "text-green-500" : "text-gray-400 dark:text-gray-500"}`}>
+                  {diff >= 0 ? "+" : "-"}{fmtDur(Math.abs(diff))}
+                </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
                   <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
-              </div>
+              </div>); })()}
               {/* 계획 */}
               <div className="relative" style={{ paddingTop: "16px" }}>
                 <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
-                <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-red-400"}`}>
-                  목표 {totals.planDiff >= 0 ? "+" : ""}{fmtDur(totals.planDiff)}
+                <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-gray-400 dark:text-gray-500"}`}>
+                  {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
                   <div className="absolute top-0 bottom-0 bg-blue-300/60 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.planProjected / WEEK_MAX_MIN) * 100)}%` }} />
