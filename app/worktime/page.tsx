@@ -732,14 +732,14 @@ export default function WorktimePage() {
                     {sheet.lockedCi ? (
                       <span className="flex-1 text-sm text-gray-500 dark:text-gray-400 px-3 py-2">{fmtAmPm(fmtHM(sheet.ci))} (확정)</span>
                     ) : (
-                      <input type="time" defaultValue={fmtHM(sheet.ci)}
+                      <input type="time" value={fmtHM(sheet.ci)}
                         className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
-                        onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
+                        onChange={(e) => { const v = parseHM(e.target.value); if (v != null) { const rest = restOverlap(v, v + avgNeedPerDay + 60); setSheet({ ...sheet, ci: v, co: sheet.suggestedCo ? v + avgNeedPerDay + rest : sheet.co, suggestedCo: sheet.suggestedCo }); } }} />
                     )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
-                    <input type="time" defaultValue={fmtHM(sheet.co)}
+                    <input type="time" value={fmtHM(sheet.co)}
                       className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
                       onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v, suggestedCo: false }); }} />
                     {sheet.suggestedCo && <span className="text-[11px] text-green-500 whitespace-nowrap">퇴근 가능</span>}
