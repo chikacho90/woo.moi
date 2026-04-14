@@ -235,6 +235,7 @@ export async function GET(request: Request) {
         timeOffRanges.push({ start: tsToHM(ts), end: tsToHM(te) });
       }
     }
+    if (dayTimeOff > 0) hasActual = true;
 
     if (hasActual) actualMin += workMin;
     totalTimeOff += dayTimeOff;
