@@ -364,7 +364,7 @@ export default function WorktimePage() {
   }, []);
 
   // 모바일 바텀시트
-  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number; timeOffType?: PlanTimeOffType } | null>(null);
+  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number; timeOffType?: PlanTimeOffType; lockedCi?: boolean } | null>(null);
 
   // 테마 모드: light → dark → system → light
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("light");
@@ -493,7 +493,7 @@ export default function WorktimePage() {
                     {/* plan 없을 때 — 탭하면 새 계획 바텀시트 (ongoing도 허용) */}
                     {!fin && (!hasA || ong) && pci == null && pd?.timeOffType !== "full" && (
                       <div className="absolute inset-0 cursor-pointer z-[1]"
-                        onClick={() => setSheet({ date: dt, ci: aci ?? 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType })} />
+                        onClick={() => setSheet({ date: dt, ci: aci ?? 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType, lockedCi: ong })} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
@@ -610,7 +610,7 @@ export default function WorktimePage() {
                     )}
                     {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
                     {!fin && (!hasA || ong) && (
-                      <button onClick={() => setSheet({ date: dt, ci: parseHM(pm.clockIn) ?? (ad?.clockIn ? parseHM(ad.clockIn) : null) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType })}
+                      <button onClick={() => setSheet({ date: dt, ci: (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType, lockedCi: ong })}
                         className={`text-[10px] whitespace-nowrap rounded px-1 py-0.5 ${pd?.timeOffType ? "bg-purple-100 dark:bg-purple-950/30 text-purple-500 border border-purple-200 dark:border-purple-700" : "text-gray-300 dark:text-gray-600 hover:text-purple-400"}`}>
                         {pd?.timeOffType ? "휴" : "+휴"}
                       </button>
@@ -759,9 +759,13 @@ export default function WorktimePage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-12">출근</span>
-                    <input type="time" defaultValue={fmtHM(sheet.ci)}
-                      className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
-                      onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
+                    {sheet.lockedCi ? (
+                      <span className="flex-1 text-sm text-gray-500 dark:text-gray-400 px-3 py-2">{fmtAmPm(fmtHM(sheet.ci))} (확정)</span>
+                    ) : (
+                      <input type="time" defaultValue={fmtHM(sheet.ci)}
+                        className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
+                        onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
