@@ -481,7 +481,7 @@ export default function WorktimePage() {
                     {!fin && pci != null && pco != null && (
                       <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer z-[3]"
                         style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
-                        onClick={() => setSheet({ date: dt, ci: pci, co: pco, timeOffType: pd?.timeOffType })} />
+                        onClick={() => setSheet({ date: dt, ci: pci, co: pco, timeOffType: pd?.timeOffType, lockedCi: ong })} />
                     )}
                     {/* plan 연차 — 전체 보라색 */}
                     {!fin && !hasA && pd?.timeOffType === "full" && (
