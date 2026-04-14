@@ -17,7 +17,8 @@ type WorktimeData = {
   requiredMin: number; doneMin: number; actualMin: number; timeOffMin: number;
   days: DayRec[];
 };
-type PlanDay = { clockIn?: string; clockOut?: string; timeOffMin?: number };
+type PlanTimeOffType = "am-quarter" | "am-half" | "pm-quarter" | "pm-half" | "full";
+type PlanDay = { clockIn?: string; clockOut?: string; timeOffMin?: number; timeOffType?: PlanTimeOffType };
 type PlanStore = Record<string, PlanDay>;
 
 const STORAGE_KEY = "worktime-plans";
@@ -41,6 +42,8 @@ function mlPct(min: number) { return Math.max(0, Math.min(100, ((min - ML_START)
 const ML_HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
 function tlPx(min: number) { return (tlPct(min) / 100) * TL_WIDTH; }
 function restOverlap(ci: number, co: number): number { return Math.max(0, Math.min(co, REST_END) - Math.max(ci, REST_START)); }
+function planToMin(t: PlanTimeOffType): number { return t === "full" ? 480 : t === "am-half" || t === "pm-half" ? 240 : 120; }
+const PLAN_TO_LABELS: Record<PlanTimeOffType, string> = { "am-quarter": "오전반반차", "am-half": "오전반차", "pm-quarter": "오후반반차", "pm-half": "오후반차", "full": "연차" };
 const DOW_KO = ["일", "월", "화", "수", "목", "금", "토"];
 function readPlans(): PlanStore { if (typeof window === "undefined") return {}; try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; } }
 function writePlans(p: PlanStore) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
@@ -65,10 +68,18 @@ type MergedDay = {
 
 function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: string): MergedDay {
   if (actual && actual.hasActual) return { date, weeklyHoliday: actual.weeklyHoliday || false, clockIn: actual.clockIn, clockOut: actual.clockOut, workMin: actual.workMin, restMin: actual.restMin, timeOffMin: actual.timeOffMin, hasActual: true, ongoing: actual.ongoing, source: "actual", workRanges: actual.workRanges, restRanges: actual.restRanges, timeOffRanges: actual.timeOffRanges };
+  const toType = plan?.timeOffType;
+  if (toType === "full") return { date, weeklyHoliday: actual?.weeklyHoliday || false, clockIn: null, clockOut: null, workMin: 0, restMin: 0, timeOffMin: 480, hasActual: false, source: "plan" };
   const ci = plan?.clockIn || null, co = plan?.clockOut || null, ciM = parseHM(ci), coM = parseHM(co);
-  let workMin = 0, restMin = 0;
+  let workMin = 0, restMin = 0, timeOffMin = 0;
+  const timeOffRanges: TimeRange[] = [];
   if (ciM != null && coM != null) { restMin = restOverlap(ciM, coM); workMin = Math.max(0, coM - ciM - restMin); }
-  return { date, weeklyHoliday: actual?.weeklyHoliday || false, clockIn: ci, clockOut: co, workMin, restMin, timeOffMin: plan?.timeOffMin || 0, hasActual: false, source: plan && (ci || co || plan.timeOffMin) ? "plan" : "empty" };
+  if (toType) {
+    timeOffMin = planToMin(toType);
+    if (toType.startsWith("am") && ciM != null) timeOffRanges.push({ start: fmtHM(ciM - timeOffMin), end: ci! });
+    else if (toType.startsWith("pm") && coM != null) timeOffRanges.push({ start: co!, end: fmtHM(coM + timeOffMin) });
+  } else { timeOffMin = plan?.timeOffMin || 0; }
+  return { date, weeklyHoliday: actual?.weeklyHoliday || false, clockIn: ci, clockOut: co, workMin, restMin, timeOffMin, hasActual: false, source: plan && (ci || co || plan.timeOffMin || toType) ? "plan" : "empty", timeOffRanges: timeOffRanges.length > 0 ? timeOffRanges : undefined };
 }
 function recMin(d: MergedDay) { return Math.min(d.workMin || 0, WORK_CAP_MIN) + (d.timeOffMin || 0); }
 function isFinal(d: MergedDay) { if (d.source !== "actual") return false; if (!d.ongoing) return true; return d.date < new Date().toISOString().slice(0, 10); }
@@ -234,7 +245,8 @@ export default function WorktimePage() {
     setWeekOffset(diff);
   }
 
-  function updatePlan(date: string, ci: number, co: number) { const n = { ...plans, [date]: { ...(plans[date] || {}), clockIn: fmtHM(ci), clockOut: fmtHM(co) } }; writePlans(n); setPlansState(n); }
+  function updatePlan(date: string, ci: number, co: number, timeOffType?: PlanTimeOffType) { const n = { ...plans, [date]: { ...(plans[date] || {}), clockIn: fmtHM(ci), clockOut: fmtHM(co), timeOffType } }; writePlans(n); setPlansState(n); }
+  function updatePlanTimeOff(date: string, timeOffType?: PlanTimeOffType) { if (timeOffType === "full") { const n = { ...plans, [date]: { timeOffType: "full" as const } }; writePlans(n); setPlansState(n); } else if (timeOffType) { const n = { ...plans, [date]: { ...(plans[date] || {}), timeOffType } }; writePlans(n); setPlansState(n); } else { const n = { ...plans, [date]: { ...(plans[date] || {}) } }; delete n[date].timeOffType; writePlans(n); setPlansState(n); } }
   function clearPlan(date: string) { const n = { ...plans }; delete n[date]; writePlans(n); setPlansState(n); }
 
   const dates = useMemo(() => data ? weekDates(data.weekFrom, data.weekTo) : [], [data]);
@@ -272,7 +284,7 @@ export default function WorktimePage() {
   }, []);
 
   // 모바일 바텀시트
-  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number } | null>(null);
+  const [sheet, setSheet] = useState<{ date: string; ci: number; co: number; timeOffType?: PlanTimeOffType } | null>(null);
 
   // 테마 모드: light → dark → system → light
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("light");
@@ -389,12 +401,19 @@ export default function WorktimePage() {
                     {!fin && pci != null && pco != null && (
                       <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer z-[3]"
                         style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
-                        onClick={() => setSheet({ date: dt, ci: pci, co: pco })} />
+                        onClick={() => setSheet({ date: dt, ci: pci, co: pco, timeOffType: pd?.timeOffType })} />
                     )}
+                    {/* plan 연차 — 전체 보라색 */}
+                    {!fin && !hasA && pd?.timeOffType === "full" && (
+                      <div className="absolute top-0 bottom-0 bg-purple-300/60 rounded cursor-pointer z-[3]" style={{ left: "0%", right: "0%" }}
+                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: "full" })} />
+                    )}
+                    {/* plan 반차/반반차 timeOff 바 */}
+                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`pt${j}`} className="absolute top-0 bottom-0 bg-purple-300/60 rounded z-[2]" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
                     {/* plan 없을 때 — 탭하면 새 계획 바텀시트 */}
-                    {!fin && !hasA && pci == null && (
+                    {!fin && !hasA && pci == null && pd?.timeOffType !== "full" && (
                       <div className="absolute inset-0 cursor-pointer"
-                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60 })} />
+                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: pd?.timeOffType })} />
                     )}
                     {/* actual 바 */}
                     {hasA && am && aci != null && aEnd != null && (
@@ -502,8 +521,15 @@ export default function WorktimePage() {
                       </button>
                     ) : (
                       <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 dark:bg-red-950/30 text-red-500 font-semibold" : rec > 0 ? "text-gray-600 dark:text-gray-400" : "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
-                        {fmtDur(rec)}{isOt ? " 🔥" : ""}
+                        {pd?.timeOffType ? PLAN_TO_LABELS[pd.timeOffType] : fmtDur(rec)}{isOt ? " 🔥" : ""}
                       </span>
+                    )}
+                    {/* 휴가 설정 버튼 — actual 없고 확정 안 된 날 */}
+                    {!fin && !hasA && (
+                      <button onClick={() => setSheet({ date: dt, ci: parseHM(pm.clockIn) ?? 9 * 60, co: parseHM(pm.clockOut) ?? 18 * 60, timeOffType: pd?.timeOffType })}
+                        className={`text-[10px] whitespace-nowrap rounded px-1 py-0.5 ${pd?.timeOffType ? "bg-purple-100 dark:bg-purple-950/30 text-purple-500 border border-purple-200 dark:border-purple-700" : "text-gray-300 dark:text-gray-600 hover:text-purple-400"}`}>
+                        {pd?.timeOffType ? "휴" : "+휴"}
+                      </button>
                     )}
                   </div>
 
@@ -517,9 +543,17 @@ export default function WorktimePage() {
                     <div className="relative" style={{ height: "22px", marginTop: "1px" }}>
                       {fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
-                          <div className={hasA ? "opacity-25 h-full" : "h-full"}>
-                            <EditableTimeline day={pm} onChange={(a, b) => updatePlan(dt, a, b)} onClear={() => clearPlan(dt)} />
-                          </div>
+                          {pd?.timeOffType === "full" ? (
+                            <div className="absolute inset-0 bg-purple-300/60 rounded flex items-center justify-center text-[10px] text-purple-600 dark:text-purple-300 cursor-pointer" onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: "full" })}>연차</div>
+                          ) : (
+                            <>
+                              <div className={hasA ? "opacity-25 h-full" : "h-full"}>
+                                <EditableTimeline day={pm} onChange={(a, b) => updatePlan(dt, a, b, pd?.timeOffType)} onClear={() => clearPlan(dt)} />
+                              </div>
+                              {/* plan timeOff 바 (반차/반반차) */}
+                              {!hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`pt${j}`} className="absolute top-0 bottom-0 bg-purple-300/60 rounded pointer-events-none" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.3, tlPct(e) - tlPct(s))}%` }} /> : null; })}
+                            </>
+                          )}
                           {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} /></div>}
                           {/* 오늘 + actual 없음 + 출근시간 있음 → 출근~현재 진행중 바 */}
                           {isT && !hasA && (() => {
@@ -623,23 +657,42 @@ export default function WorktimePage() {
               <div className="w-10 h-1 bg-gray-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
               <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">{sheet.date} 계획</div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 dark:text-gray-400 w-12">출근</span>
-                  <input type="time" defaultValue={fmtHM(sheet.ci)}
-                    className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
-                    onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
-                  <input type="time" defaultValue={fmtHM(sheet.co)}
-                    className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
-                    onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v }); }} />
-                </div>
+              {/* 휴가 종류 선택 */}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {([undefined, "am-quarter", "am-half", "pm-quarter", "pm-half", "full"] as (PlanTimeOffType | undefined)[]).map((t) => (
+                  <button key={t || "none"} onClick={() => setSheet({ ...sheet, timeOffType: t })}
+                    className={`text-[12px] rounded-lg px-2.5 py-1.5 border ${sheet.timeOffType === t ? "bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-600" : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"}`}>
+                    {t ? PLAN_TO_LABELS[t] : "없음"}
+                  </button>
+                ))}
               </div>
 
+              {sheet.timeOffType !== "full" && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-12">출근</span>
+                    <input type="time" defaultValue={fmtHM(sheet.ci)}
+                      className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, ci: v }); }} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-12">퇴근</span>
+                    <input type="time" defaultValue={fmtHM(sheet.co)}
+                      className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-neutral-800 dark:text-gray-200 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => { const v = parseHM(e.target.value); if (v != null) setSheet({ ...sheet, co: v }); }} />
+                  </div>
+                </div>
+              )}
+              {sheet.timeOffType === "full" && (
+                <div className="text-center text-sm text-purple-500 dark:text-purple-400 py-4">하루 전체 휴가 (8시간)</div>
+              )}
+
               <div className="flex gap-2 mt-5">
-                <button onClick={() => { if (sheet.co > sheet.ci) { updatePlan(sheet.date, sheet.ci, sheet.co); setSheet(null); } }}
+                <button onClick={() => {
+                  if (sheet.timeOffType === "full") { updatePlanTimeOff(sheet.date, "full"); }
+                  else if (sheet.co > sheet.ci) { updatePlan(sheet.date, sheet.ci, sheet.co, sheet.timeOffType); }
+                  setSheet(null);
+                }}
                   className="flex-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg py-2.5 text-sm font-medium">저장</button>
                 <button onClick={() => { clearPlan(sheet.date); setSheet(null); }}
                   className="px-4 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg py-2.5 text-sm">삭제</button>
