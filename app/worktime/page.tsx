@@ -243,12 +243,21 @@ export default function WorktimePage() {
   const totals = useMemo(() => {
     let actual = 0, planned = 0;
     for (const d of merged) {
-      if (d.source === "actual") actual += recMin(d);
+      if (d.source === "actual") {
+        actual += recMin(d);
+        // ongoing(근무 중)인 오늘에 계획이 있으면, 계획 잔여분을 planned에 반영
+        if (d.ongoing && plans[d.date]) {
+          const planDay = mergeDay(undefined, plans[d.date], d.date);
+          const planTotal = recMin(planDay);
+          const diff = planTotal - recMin(d);
+          if (diff > 0) planned += diff;
+        }
+      }
       else if (d.source === "plan") planned += recMin(d);
     }
     const total = actual + planned;
     return { rec: actual, planned, total, remT: Math.max(0, WEEK_REQUIRED_MIN - total), remM: Math.max(0, WEEK_MAX_MIN - total) };
-  }, [merged]);
+  }, [merged, plans]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
