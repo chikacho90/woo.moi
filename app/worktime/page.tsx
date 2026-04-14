@@ -449,6 +449,8 @@ export default function WorktimePage() {
                     {!fin && pm.clockOut && !(hasA && ad!.clockOut === pm.clockOut) && (
                       <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                     )}
+                    {/* plan 휴가 라벨 */}
+                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute text-purple-400 whitespace-nowrap" style={{ left: `${mlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute text-purple-400 whitespace-nowrap" style={{ left: `${mlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
                   </div>
                 </div>
               );
@@ -598,6 +600,8 @@ export default function WorktimePage() {
                           <span className="absolute whitespace-nowrap text-blue-400" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                         </>;
                       })()}
+                      {/* plan 휴가 라벨 */}
+                      {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
                     </div>
                   </div>
                 </div>
