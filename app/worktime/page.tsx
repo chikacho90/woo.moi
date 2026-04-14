@@ -358,16 +358,16 @@ export default function WorktimePage() {
   const themeIcon = themeMode === "light" ? "☀️" : themeMode === "dark" ? "🌙" : "💻";
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
-      <div className="max-w-[100vw] mx-auto">
+    <div className="h-screen overflow-hidden flex flex-col bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
+      <div className="flex flex-col flex-1 min-h-0 max-w-[100vw] mx-auto">
 
         {/* ─── Title ─── */}
-        <div className="px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 text-center">
+        <div className="px-4 py-1.5 shrink-0 border-b border-gray-100 dark:border-gray-800 text-center">
           <h1 className="text-sm font-semibold">Weekly Work Plan</h1>
         </div>
 
         {/* ─── Nav ─── */}
-        <div className="relative flex items-center justify-center px-4 py-1.5 sticky top-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
+        <div className="relative flex items-center justify-center px-4 py-1.5 shrink-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
           {/* 오늘 — 왼쪽 고정 */}
           <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1">오늘</button>
           {/* Week selector — 가운데 */}
@@ -388,7 +388,7 @@ export default function WorktimePage() {
 
         {/* ─── Mobile Layout ─── */}
         {isMobile && (
-          <div className="px-3 pb-2">
+          <div className="px-3 pb-2 flex-1 min-h-0 flex flex-col">
             {/* 시간 헤더 */}
             <div className="relative h-5 mb-1">
               {ML_HOURS.filter((_, i) => i % 2 === 0).map((h) => (
@@ -511,7 +511,7 @@ export default function WorktimePage() {
         )}
 
         {/* ─── Desktop Timeline ─── */}
-        {!isMobile && <div ref={scrollRef} className="overflow-x-auto hide-scrollbar">
+        {!isMobile && <div ref={scrollRef} className="overflow-x-auto hide-scrollbar flex-1 min-h-0">
           <div style={{ width: `${TL_WIDTH + 160}px`, minWidth: "100%" }}>
 
             {/* Hour header */}
@@ -665,7 +665,7 @@ export default function WorktimePage() {
         </div>}
 
         {/* Legend */}
-        <div className="px-4 py-1.5 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-400">
+        <div className="px-4 py-1 shrink-0 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-400">
           <div className="flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
@@ -678,7 +678,7 @@ export default function WorktimePage() {
 
         {/* Weekly summary — 실제/계획 분리 */}
         {data && (
-          <div className="border-t border-gray-100 dark:border-gray-800 py-4 px-8 flex justify-center">
+          <div className="border-t border-gray-100 dark:border-gray-800 py-2 px-8 shrink-0 flex justify-center">
             <div className="w-full max-w-2xl space-y-2">
               {/* 실제 근무 */}
               {(() => { const diff = totals.rec - WEEK_REQUIRED_MIN; return (
