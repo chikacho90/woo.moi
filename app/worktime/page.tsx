@@ -154,13 +154,13 @@ function EditableTimeline({ day, onChange, onClear }: { day: MergedDay; onChange
   return (
     <div ref={ref} className="group relative h-full select-none touch-none" onPointerDown={(e) => { if (!has) start("create", e); }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       {has && ci != null && co != null && (
-        <div className="group/b absolute top-0 bottom-0 bg-blue-300/50 hover:bg-blue-300/70 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+        <div className="group/b absolute top-0 bottom-0 bg-blue-300/50 dark:bg-blue-400/50 hover:bg-blue-300/70 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l" onPointerDown={(e) => start("resizeStart", e)} />
           <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r" onPointerDown={(e) => start("resizeEnd", e)} />
           <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/b:flex absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white dark:bg-neutral-800 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:bg-red-500 hover:text-white items-center justify-center text-[9px] z-10">✕</button>
         </div>
       )}
-      {!has && <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">드래그해서 계획</div>}
+      {!has && <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-500 pointer-events-none">드래그해서 계획</div>}
     </div>
   );
 }
@@ -392,7 +392,7 @@ export default function WorktimePage() {
             {/* 시간 헤더 */}
             <div className="relative h-5 mb-1">
               {ML_HOURS.filter((_, i) => i % 2 === 0).map((h) => (
-                <div key={h} className="absolute text-[9px] text-gray-300 dark:text-gray-600 -translate-x-1/2" style={{ left: `${mlPct(h * 60)}%`, top: "2px" }}>
+                <div key={h} className="absolute text-[9px] text-gray-300 dark:text-gray-500 -translate-x-1/2" style={{ left: `${mlPct(h * 60)}%`, top: "2px" }}>
                   {h === 12 ? "정오" : h > 12 ? h - 12 : h}
                 </div>
               ))}
@@ -489,20 +489,20 @@ export default function WorktimePage() {
                       return <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse" style={{ left: `${mlPct(ci)}%`, width: `${Math.max(0.3, mlPct(nowMin) - mlPct(ci))}%` }} />;
                     })()}
                     {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                    {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
+                    {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
                   </div>
                   {/* 라벨 */}
                   <div className="relative text-[9px] mt-0.5 h-3">
-                    {hasA && ad!.clockIn && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
-                    {hasA && ad!.clockOut && <span className="absolute text-gray-400 dark:text-gray-500 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                    {hasA && ad!.clockIn && <span className="absolute text-gray-400 dark:text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
+                    {hasA && ad!.clockOut && <span className="absolute text-gray-400 dark:text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                     {!fin && pm.clockIn && !hasA && (
-                      <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
+                      <span className="absolute text-blue-400 dark:text-blue-300 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
                     )}
                     {!fin && pm.clockOut && !(hasA && ad!.clockOut === pm.clockOut) && (
-                      <span className="absolute text-blue-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
+                      <span className="absolute text-blue-400 dark:text-blue-300 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                     )}
                     {/* plan 휴가 라벨 */}
-                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute text-purple-400 whitespace-nowrap" style={{ left: `${mlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute text-purple-400 whitespace-nowrap" style={{ left: `${mlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
+                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
                   </div>
                 </div>
               );
@@ -519,7 +519,7 @@ export default function WorktimePage() {
               <div className="w-[160px] shrink-0" />
               <div className="relative h-6 border-b border-gray-100 dark:border-gray-800" style={{ width: `${TL_WIDTH}px` }}>
                 {TL_HOURS.map((h) => (
-                  <div key={h} className="absolute text-[10px] text-gray-300 dark:text-gray-600 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
+                  <div key={h} className="absolute text-[10px] text-gray-300 dark:text-gray-500 -translate-x-1/2" style={{ left: `${tlPct(h * 60)}%`, bottom: "2px" }}>
                     {h === 0 || h === 24 ? "" : h === 12 ? <span className="text-gray-400 dark:text-gray-500">정오<br/><span className="text-[9px]">12</span></span> : h > 12 ? h - 12 : h}
                   </div>
                 ))}
@@ -623,7 +623,7 @@ export default function WorktimePage() {
                         </>
                       )}
                       {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                      {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
+                      {dayHints[dt] && <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur(dayHints[dt].min)} 필요</span>}
                     </div>
 
                     {/* 라벨: 한 줄에 actual + plan 합침 */}
@@ -634,14 +634,14 @@ export default function WorktimePage() {
                           {ad!.workRanges ? ad!.workRanges.map((wr, j) => {
                             const ws = parseHM(wr.start);
                             if (ws == null) return null;
-                            return <span key={`ws${j}`} className="absolute whitespace-nowrap text-gray-400 dark:text-gray-500" style={{ left: `${tlPct(ws)}%` }}>
+                            return <span key={`ws${j}`} className="absolute whitespace-nowrap text-gray-400 dark:text-gray-400" style={{ left: `${tlPct(ws)}%` }}>
                               {fmtAmPm(wr.start)}
-                              {j === 0 && ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-600 ml-1">휴게 {ad!.restRanges.length}건</span>}
+                              {j === 0 && ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-500 ml-1">휴게 {ad!.restRanges.length}건</span>}
                             </span>;
-                          }) : ad!.clockIn && <span className="absolute whitespace-nowrap text-gray-400 dark:text-gray-500" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-600 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
-                          {ad!.clockOut && <span className={`absolute whitespace-nowrap text-gray-400 dark:text-gray-500 ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
-                          {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
-                          {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
+                          }) : ad!.clockIn && <span className="absolute whitespace-nowrap text-gray-400 dark:text-gray-400" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-500 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
+                          {ad!.clockOut && <span className={`absolute whitespace-nowrap text-gray-400 dark:text-gray-400 ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
+                          {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
+                          {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
                         </>
                       )}
                       {/* plan 라벨 — actual과 겹치지 않는 시간만 */}
@@ -650,12 +650,12 @@ export default function WorktimePage() {
                         const planCoSame = hasA && ad!.clockOut === pm.clockOut;
                         if (planCiSame && planCoSame) return null;
                         return <>
-                          {!planCiSame && !hasA && <span className="absolute whitespace-nowrap text-blue-400" style={{ left: `${tlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>}
-                          <span className="absolute whitespace-nowrap text-blue-400" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
+                          {!planCiSame && !hasA && <span className="absolute whitespace-nowrap text-blue-400 dark:text-blue-300" style={{ left: `${tlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>}
+                          <span className="absolute whitespace-nowrap text-blue-400 dark:text-blue-300" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                         </>;
                       })()}
                       {/* plan 휴가 라벨 */}
-                      {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute whitespace-nowrap text-purple-400" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
+                      {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
                     </div>
                   </div>
                 </div>
@@ -665,7 +665,7 @@ export default function WorktimePage() {
         </div>}
 
         {/* Legend */}
-        <div className="px-4 py-1.5 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500">
+        <div className="px-4 py-1.5 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-400">
           <div className="flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
@@ -673,7 +673,7 @@ export default function WorktimePage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-300 rounded-full" />휴가</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-300/50 rounded-full" />계획</span>
           </div>
-          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-600 hover:text-red-400">계획 리셋</button>
+          <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-500 hover:text-red-400">계획 리셋</button>
         </div>
 
         {/* Weekly summary — 실제/계획 분리 */}
@@ -683,7 +683,7 @@ export default function WorktimePage() {
               {/* 실제 근무 */}
               {(() => { const diff = totals.rec - WEEK_REQUIRED_MIN; return (
               <div className="relative" style={{ paddingTop: "16px" }}>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-400 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
                 <span className={`absolute text-[10px] font-mono right-0 top-0 ${diff >= 0 ? "text-green-500" : "text-red-400"}`}>
                   {diff >= 0 ? "+" : "-"}{fmtDur(Math.abs(diff))}
                 </span>
@@ -694,7 +694,7 @@ export default function WorktimePage() {
               </div>); })()}
               {/* 계획 */}
               <div className="relative" style={{ paddingTop: "16px" }}>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-500 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-400 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
                 <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-red-400"}`}>
                   {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
