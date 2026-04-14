@@ -300,12 +300,12 @@ export default function WorktimePage() {
       <div className="max-w-[100vw] mx-auto">
 
         {/* ─── Title ─── */}
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-center">
-          <h1 className="text-lg font-semibold">Weekly Work Plan</h1>
+        <div className="px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 text-center">
+          <h1 className="text-sm font-semibold">Weekly Work Plan</h1>
         </div>
 
         {/* ─── Nav ─── */}
-        <div className="relative flex items-center justify-center px-4 py-2.5 sticky top-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
+        <div className="relative flex items-center justify-center px-4 py-1.5 sticky top-0 bg-white dark:bg-neutral-950 z-20 border-b border-gray-100 dark:border-gray-800">
           {/* 오늘 — 왼쪽 고정 */}
           <button onClick={() => setWeekOffset(0)} className="absolute left-4 text-[13px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1">오늘</button>
           {/* Week selector — 가운데 */}
@@ -360,9 +360,9 @@ export default function WorktimePage() {
               const hasOt = otS != null && aEnd != null && aEnd > otS;
 
               return (
-                <div key={dt} className={`py-2 border-b border-gray-100 dark:border-neutral-800 ${isT ? "bg-green-50/40 dark:bg-emerald-950/30 -mx-3 px-3 rounded-lg" : ""}`}>
+                <div key={dt} className={`py-1 border-b border-gray-100 dark:border-neutral-800 ${isT ? "bg-green-50/40 dark:bg-emerald-950/30 -mx-3 px-3 rounded-lg" : ""}`}>
                   {/* 날짜 + 시간 */}
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 mb-0.5">
                     <div className="flex items-baseline gap-0.5">
                       {isT ? <span className="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
                         : <span className={`text-sm font-medium ${isWe ? "text-red-400" : "text-gray-800 dark:text-gray-200"}`}>{dateNum(dt)}</span>}
@@ -380,7 +380,7 @@ export default function WorktimePage() {
                     )}
                   </div>
                   {/* 타임라인 바 */}
-                  <div className="relative" style={{ height: "24px" }}>
+                  <div className="relative" style={{ height: "18px" }}>
                     {ML_HOURS.map((h) => (
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
@@ -482,7 +482,7 @@ export default function WorktimePage() {
               return (
                 <div key={dt} className={`flex border-b border-gray-100 dark:border-neutral-800 ${isT ? "bg-green-50/40 dark:bg-emerald-950/30" : ""}`}>
                   {/* Left — sticky with right shadow mask */}
-                  <div className={`w-[160px] shrink-0 flex items-center gap-3 py-4 pl-4 pr-2 sticky left-0 z-[5] shadow-[6px_0_12px_0px_rgba(0,0,0,0.06)] dark:shadow-[6px_0_12px_0px_rgba(0,0,0,0.3)] ${isT ? "bg-green-50 dark:bg-emerald-950/40" : "bg-white dark:bg-neutral-950"}`}>
+                  <div className={`w-[160px] shrink-0 flex items-center gap-3 py-1.5 pl-4 pr-2 sticky left-0 z-[5] shadow-[6px_0_12px_0px_rgba(0,0,0,0.06)] dark:shadow-[6px_0_12px_0px_rgba(0,0,0,0.3)] ${isT ? "bg-green-50 dark:bg-emerald-950/40" : "bg-white dark:bg-neutral-950"}`}>
                     <div className="flex items-baseline gap-1 min-w-[40px]">
                       {isT
                         ? <span className="w-6 h-6 rounded-full bg-green-500 text-white text-[11px] font-bold flex items-center justify-center">{dateNum(dt)}</span>
@@ -508,13 +508,13 @@ export default function WorktimePage() {
                   </div>
 
                   {/* Timeline area */}
-                  <div className="relative py-3" style={{ width: `${TL_WIDTH}px`, minHeight: "68px" }}>
+                  <div className="relative py-1" style={{ width: `${TL_WIDTH}px`, minHeight: "44px" }}>
                     {TL_HOURS.map((h) => (
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${tlPct(h * 60)}%` }} />
                     ))}
                     {isCur && <div className="absolute top-0 bottom-0 w-[1.5px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />}
 
-                    <div className="relative" style={{ height: "30px", marginTop: "2px" }}>
+                    <div className="relative" style={{ height: "22px", marginTop: "1px" }}>
                       {fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
                           <div className={hasA ? "opacity-25 h-full" : "h-full"}>
@@ -537,7 +537,7 @@ export default function WorktimePage() {
                     </div>
 
                     {/* 라벨: 한 줄에 actual + plan 합침 */}
-                    <div className="relative text-[10px] mt-0.5 h-4">
+                    <div className="relative text-[9px] mt-0 h-3">
                       {/* actual 라벨 */}
                       {hasA && (
                         <>
@@ -573,7 +573,7 @@ export default function WorktimePage() {
         </div>}
 
         {/* Legend */}
-        <div className="px-4 py-3 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500">
+        <div className="px-4 py-1.5 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500">
           <div className="flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" />근무</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
@@ -586,7 +586,7 @@ export default function WorktimePage() {
 
         {/* Weekly summary — 별도 섹션 */}
         {data && (
-          <div className="border-t border-gray-100 dark:border-gray-800 py-8 px-8 flex justify-center">
+          <div className="border-t border-gray-100 dark:border-gray-800 py-4 px-8 flex justify-center">
             <div className="w-full max-w-2xl relative" style={{ paddingTop: "24px" }}>
               {/* 현재 시간 — 바 왼쪽 끝 위 */}
               <span className="absolute text-[11px] font-mono text-gray-400 dark:text-gray-500 left-0" style={{ top: "0" }}>
