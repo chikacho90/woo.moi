@@ -285,6 +285,52 @@ export default function WorktimePage() {
     return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff };
   }, [merged, plans, dates, byDate]);
 
+  // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
+  const dayHints = useMemo(() => {
+    const hints: Record<string, { type: "avg"; min: number } | { type: "depart"; time: number }> = {};
+    // 비어있는 평일 찾기 + 이미 확보된 시간 합산
+    let filled = 0;
+    const emptyDays: string[] = [];
+    for (let i = 0; i < merged.length; i++) {
+      const d = merged[i], dt = dates[i];
+      const di = new Date(dt + "T00:00:00+09:00").getDay();
+      const isWe = di === 0 || di === 6;
+      if (isWe || d.weeklyHoliday) continue;
+      if (d.source === "empty") { emptyDays.push(dt); }
+      else { filled += recMin(d); }
+    }
+    const remaining = Math.max(0, WEEK_REQUIRED_MIN - filled);
+    const avgPerDay = emptyDays.length > 0 ? Math.ceil(remaining / emptyDays.length) : 0;
+    for (const dt of emptyDays) hints[dt] = { type: "avg", min: avgPerDay };
+    // 블록이 있는 날: 퇴근 예상시간
+    for (let i = 0; i < merged.length; i++) {
+      const d = merged[i], dt = dates[i], ad = byDate.get(dt), pd = plans[dt];
+      if (d.source === "empty") continue;
+      const di = new Date(dt + "T00:00:00+09:00").getDay();
+      const isWe = di === 0 || di === 6;
+      if (isWe || d.weeklyHoliday) continue;
+      if (isFinal(d)) continue; // 이미 확정
+      // 이 날에 필요한 시간 = 다른 날 다 채우고 남은 것 기준
+      let othersTotal = 0;
+      for (let j = 0; j < merged.length; j++) {
+        if (j === i) continue;
+        const od = merged[j];
+        if (od.source !== "empty") othersTotal += recMin(od);
+      }
+      const needThis = Math.max(0, WEEK_REQUIRED_MIN - othersTotal);
+      // 출근시간 기준 퇴근시간 계산
+      let ci: number | null = null;
+      if (ad?.hasActual && ad.clockIn) ci = parseHM(ad.clockIn);
+      else if (pd?.clockIn) ci = parseHM(pd.clockIn);
+      if (ci != null && needThis > 0) {
+        const rest = needThis > 0 ? restOverlap(ci, ci + needThis + 60) : 0;
+        const depart = ci + needThis + rest - (d.timeOffMin || 0);
+        hints[dt] = { type: "depart", time: depart };
+      }
+    }
+    return hints;
+  }, [merged, dates, byDate, plans]);
+
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const isCur = weekOffset === 0;
@@ -452,6 +498,8 @@ export default function WorktimePage() {
                       if (ci == null || nowMin <= ci) return null;
                       return <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse" style={{ left: `${mlPct(ci)}%`, width: `${Math.max(0.3, mlPct(nowMin) - mlPct(ci))}%` }} />;
                     })()}
+                    {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
+                    {(() => { const h = dayHints[dt]; if (!h) return null; if (h.type === "avg") return <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(h.min)} 필요</span>; return <span className="absolute right-1 top-0 bottom-0 flex items-center text-[10px] text-green-500 dark:text-green-400 pointer-events-none z-[5]">{fmtAmPm(fmtHM(h.time))} 퇴근</span>; })()}
                   </div>
                   {/* 라벨 */}
                   <div className="relative text-[9px] mt-0.5 h-3">
@@ -584,6 +632,8 @@ export default function WorktimePage() {
                           })()}
                         </>
                       )}
+                      {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
+                      {(() => { const h = dayHints[dt]; if (!h) return null; if (h.type === "avg") return <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-600 pointer-events-none">{fmtDur(h.min)} 필요</span>; return <span className="absolute right-2 top-0 bottom-0 flex items-center text-[11px] text-green-500 dark:text-green-400 pointer-events-none z-[5]">{fmtAmPm(fmtHM(h.time))} 퇴근</span>; })()}
                     </div>
 
                     {/* 라벨: 한 줄에 actual + plan 합침 */}
