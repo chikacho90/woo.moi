@@ -233,7 +233,8 @@ export default function WorktimePage() {
     setTodayClockIn(time);
   }
 
-  const weekOfDate = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + weekOffset * 7); return d.toISOString().slice(0, 10); }, [weekOffset]);
+  const [weekOfDate, setWeekOfDate] = useState("");
+  useEffect(() => { const d = new Date(); d.setDate(d.getDate() + weekOffset * 7); setWeekOfDate(d.toISOString().slice(0, 10)); }, [weekOffset]);
   const refresh = useCallback(async () => { try { setLoading(true); const r = await fetch(`/api/worktime?weekOf=${weekOfDate}`, { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status}`); setData(await r.json()); setError(null); } catch (e) { setError((e as Error).message); } finally { setLoading(false); } }, [weekOfDate]);
   useEffect(() => { setPlansState(readPlans()); refresh(); const id = setInterval(refresh, 60_000); return () => clearInterval(id); }, [refresh]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollLeft = tlPx(8 * 60); }, [data]);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { makeLabsToken, COOKIE_NAME } from "@/lib/auth";
+import { makeSiteToken, COOKIE_NAME } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300;
@@ -127,11 +127,11 @@ async function loadLastUpdated(botId: string): Promise<string | null> {
 }
 
 export async function GET() {
-  const secret = process.env.LABS_SECRET;
+  const secret = process.env.SITE_SECRET;
   if (secret) {
     const jar = await cookies();
     const token = jar.get(COOKIE_NAME)?.value;
-    const expected = await makeLabsToken(secret);
+    const expected = await makeSiteToken(secret);
     if (token !== expected) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
