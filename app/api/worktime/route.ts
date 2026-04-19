@@ -41,10 +41,12 @@ function tsToHM(ts: number): string {
 type FlexTimeBlock = {
   type: string;
   value: {
-    startTimestamp: { timestamp: number };
+    startTimestamp?: { timestamp: number } | null;
     endTimestampExclusive?: { timestamp: number } | null;
     usedMinutes?: number;
     workFormId?: string;
+    allDay?: boolean;
+    timeOffRegisterUnit?: string;
   };
 };
 
@@ -188,7 +190,7 @@ export async function GET(request: Request) {
     } else if (workBlocks.length > 0) {
       hasActual = true;
       // 전체 출퇴근 시간: 첫 블록의 시작 ~ 마지막 블록의 끝
-      const firstTs = workBlocks[0].value.startTimestamp.timestamp;
+      const firstTs = workBlocks[0].value.startTimestamp!.timestamp;
       clockIn = tsToHM(firstTs);
 
       const lastBlock = workBlocks[workBlocks.length - 1];
@@ -203,7 +205,7 @@ export async function GET(request: Request) {
 
       // 개별 근무 블록 (외근 구분)
       for (const wb of workBlocks) {
-        const s = wb.value.startTimestamp.timestamp;
+        const s = wb.value.startTimestamp!.timestamp;
         const e = wb.value.endTimestampExclusive?.timestamp;
         const isRemote = wb.value.workFormId !== "409273";
         workRanges.push({
@@ -216,7 +218,7 @@ export async function GET(request: Request) {
 
     const restRanges: { start: string; end: string }[] = [...ongoingRestRanges];
     for (const rb of restBlocks) {
-      const rs = rb.value.startTimestamp.timestamp;
+      const rs = rb.value.startTimestamp!.timestamp;
       const re = rb.value.endTimestampExclusive?.timestamp;
       if (re) {
         restMin += Math.round((re - rs) / 60_000);
@@ -233,6 +235,9 @@ export async function GET(request: Request) {
       const te = tb.value.endTimestampExclusive?.timestamp;
       if (ts && te) {
         timeOffRanges.push({ start: tsToHM(ts), end: tsToHM(te) });
+      } else if (tb.value.allDay || tb.value.timeOffRegisterUnit === "DAY") {
+        // Flex는 사내행사/전일 휴가 같은 allDay 블록은 타임스탬프 없이 내려줌 → 표준 근무시간대로 시각화
+        timeOffRanges.push({ start: "09:00", end: "18:00" });
       }
     }
     if (dayTimeOff > 0) hasActual = true;
