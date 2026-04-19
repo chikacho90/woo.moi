@@ -51,6 +51,8 @@ function parseHM(s: string | null | undefined): number | null { if (!s) return n
 function fmtHM(t: number | null): string { if (t == null) return ""; return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; }
 function fmtAmPm(hm: string): string { const m = parseHM(hm); if (m == null) return hm; const h = Math.floor(m / 60), min = m % 60; return `${h < 12 ? "오전" : "오후"} ${h === 0 ? 12 : h > 12 ? h - 12 : h}:${String(min).padStart(2, "0")}`; }
 function fmtDur(t: number | null): string { if (t == null) return "-"; const s = t < 0 ? "-" : ""; t = Math.abs(t); return `${s}${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }
+function fmtDurKo(t: number): string { const h = Math.floor(t / 60), m = t % 60; if (h === 0) return `${m}분`; if (m === 0) return `${h}시간`; return `${h}시간 ${m}분`; }
+function fmtDiff(rec: number): string | null { const diff = rec - DAILY_TARGET_MIN; if (diff === 0) return null; const abs = Math.abs(diff); return `${diff > 0 ? "+" : "-"} ${fmtDurKo(abs)}`; }
 function getDow(d: string) { return DOW_KO[new Date(d + "T00:00:00+09:00").getDay()]; }
 function dateNum(d: string) { return parseInt(d.slice(8, 10), 10); }
 function snap(m: number) { return Math.round(m / SNAP_MIN) * SNAP_MIN; }
@@ -418,7 +420,6 @@ export default function WorktimePage() {
               const di = new Date(dt + "T00:00:00+09:00").getDay();
               const isWe = di === 0 || di === 6;
               const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
-              const isOt = rec > DAILY_TARGET_MIN;
               let pm = mergeDay(undefined, pd, dt);
               if (isT && hasA && ad!.clockIn && pm.clockIn) {
                 const aci = parseHM(ad!.clockIn), pci = parseHM(pm.clockIn), pco = parseHM(pm.clockOut);
@@ -447,8 +448,8 @@ export default function WorktimePage() {
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)!)) : "출근"}
                       </button>
                     ) : (
-                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${isOt ? "bg-red-50 dark:bg-red-950/30 text-red-500 font-semibold" : rec > 0 ? "text-gray-500 dark:text-gray-400" : "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
-                        {fmtDur(rec)}{isOt ? " 🔥" : ""}
+                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
+                        {fmtDur(rec)}{rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}
                       </span>
                     )}
                   </div>
@@ -548,7 +549,6 @@ export default function WorktimePage() {
               const di = new Date(dt + "T00:00:00+09:00").getDay();
               const isWe = di === 0 || di === 6;
               const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
-              const isOt = rec > DAILY_TARGET_MIN;
               let pm = mergeDay(undefined, pd, dt);
               // 오늘 + actual 출근시간이 있으면 계획 시작시간을 actual에 맞춤
               if (isT && hasA && ad!.clockIn && pm.clockIn) {
@@ -586,8 +586,8 @@ export default function WorktimePage() {
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)! - (nowMin > REST_START && parseHM(todayClockIn)! < REST_END ? Math.min(60, nowMin - REST_START) : 0))) : "출근 입력"}
                       </button>
                     ) : (
-                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${isOt ? "bg-red-50 dark:bg-red-950/30 text-red-500 font-semibold" : rec > 0 ? "text-gray-600 dark:text-gray-400" : "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
-                        {pd?.timeOffType ? PLAN_TO_LABELS[pd.timeOffType] : fmtDur(rec)}{isOt ? " 🔥" : ""}
+                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${pd?.timeOffType ? "text-gray-600 dark:text-gray-400" : rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
+                        {pd?.timeOffType ? PLAN_TO_LABELS[pd.timeOffType] : fmtDur(rec)}{!pd?.timeOffType && rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}
                       </span>
                     )}
                     {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
