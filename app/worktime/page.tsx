@@ -255,10 +255,13 @@ export default function WorktimePage() {
   const merged = useMemo(() => data ? dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt)) : [], [data, dates, plans, byDate]);
   const totals = useMemo(() => {
     let actual = 0, planProjected = 0;
+    let aWork = 0, aVac = 0, pWork = 0, pVac = 0;
     for (let i = 0; i < merged.length; i++) {
       const d = merged[i], dt = dates[i], pd = plans[dt], ad = byDate.get(dt);
       if (d.source === "actual") {
         actual += recMin(d);
+        aWork += Math.min(d.workMin || 0, WORK_CAP_MIN);
+        aVac += d.timeOffMin || 0;
         if (isFinal(d)) {
           // 확정된 날: 실제 시간이 계획을 대체
           planProjected += recMin(d);
@@ -270,16 +273,23 @@ export default function WorktimePage() {
           const planBase = recMin(planDay);
           const lateDiff = (actualCi != null && planCi != null && actualCi > planCi) ? (actualCi - planCi) : 0;
           planProjected += Math.max(0, planBase - lateDiff);
+          // ongoing의 plan 잔여분을 plan 세그먼트에 추가
+          const pWorkExtra = Math.max(0, Math.min(planDay.workMin || 0, WORK_CAP_MIN) - Math.min(d.workMin || 0, WORK_CAP_MIN) - lateDiff);
+          const pVacExtra = Math.max(0, (planDay.timeOffMin || 0) - (d.timeOffMin || 0));
+          pWork += pWorkExtra;
+          pVac += pVacExtra;
         } else {
           // ongoing이지만 계획 없음: 실제 시간 사용
           planProjected += recMin(d);
         }
       } else if (d.source === "plan") {
         planProjected += recMin(d);
+        pWork += Math.min(d.workMin || 0, WORK_CAP_MIN);
+        pVac += d.timeOffMin || 0;
       }
     }
     const planDiff = planProjected - WEEK_REQUIRED_MIN;
-    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff };
+    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff, aWork, aVac, pWork, pVac };
   }, [merged, plans, dates, byDate]);
 
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
@@ -678,30 +688,20 @@ export default function WorktimePage() {
           <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-500 hover:text-red-400">계획 리셋</button>
         </div>
 
-        {/* Weekly summary — 실제/계획 분리 */}
+        {/* Weekly summary — 실제+계획 통합 바 */}
         {data && (
           <div className="border-t border-gray-100 dark:border-gray-800 py-4 px-8 flex justify-center">
-            <div className="w-full max-w-2xl space-y-2">
-              {/* 실제 근무 */}
-              {(() => { const diff = totals.rec - WEEK_REQUIRED_MIN; return (
+            <div className="w-full max-w-2xl">
               <div className="relative" style={{ paddingTop: "16px" }}>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-400 left-0 top-0">실제 {fmtDur(totals.rec)}</span>
-                <span className={`absolute text-[10px] font-mono right-0 top-0 ${diff >= 0 ? "text-green-500" : "text-red-400"}`}>
-                  {diff >= 0 ? "+" : "-"}{fmtDur(Math.abs(diff))}
-                </span>
-                <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
-                  <div className="absolute top-0 bottom-0 bg-amber-300 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.rec / WEEK_MAX_MIN) * 100)}%` }} />
-                </div>
-                <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
-              </div>); })()}
-              {/* 계획 */}
-              <div className="relative" style={{ paddingTop: "16px" }}>
-                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-400 left-0 top-0">계획 {fmtDur(totals.planProjected)}</span>
+                <span className="absolute text-[10px] font-mono text-gray-400 dark:text-gray-400 left-0 top-0">주간 {fmtDur(totals.planProjected)}</span>
                 <span className={`absolute text-[10px] font-mono right-0 top-0 ${totals.planDiff >= 0 ? "text-green-500" : "text-red-400"}`}>
                   {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
-                <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
-                  <div className="absolute top-0 bottom-0 bg-amber-300/60 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.planProjected / WEEK_MAX_MIN) * 100)}%` }} />
+                <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden flex">
+                  <div className="bg-amber-300 transition-all" style={{ width: `${Math.min(100, (totals.aWork / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="bg-purple-300/80 transition-all" style={{ width: `${Math.min(100, (totals.aVac / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="bg-amber-300/60 transition-all" style={{ width: `${Math.min(100, (totals.pWork / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="bg-purple-300/60 transition-all" style={{ width: `${Math.min(100, (totals.pVac / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
