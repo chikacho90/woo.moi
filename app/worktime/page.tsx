@@ -154,7 +154,7 @@ function EditableTimeline({ day, onChange, onClear }: { day: MergedDay; onChange
   return (
     <div ref={ref} className="group relative h-full select-none touch-none" onPointerDown={(e) => { if (!has) start("create", e); }} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
       {has && ci != null && co != null && (
-        <div className="group/b absolute top-0 bottom-0 bg-blue-300/50 dark:bg-blue-400/50 hover:bg-blue-300/70 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+        <div className="group/b absolute top-0 bottom-0 bg-amber-300/60 dark:bg-amber-300/60 hover:bg-amber-300/80 rounded cursor-grab active:cursor-grabbing" style={{ left: `${tlPct(ci)}%`, width: `${Math.max(0.5, tlPct(co) - tlPct(ci))}%` }} onPointerDown={(e) => start("move", e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l" onPointerDown={(e) => start("resizeStart", e)} />
           <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r" onPointerDown={(e) => start("resizeEnd", e)} />
           <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear(); }} className="hidden group-hover/b:flex absolute -top-2 -right-2 w-4 h-4 rounded-full bg-white dark:bg-neutral-800 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:bg-red-500 hover:text-white items-center justify-center text-[9px] z-10">✕</button>
@@ -450,7 +450,7 @@ export default function WorktimePage() {
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
                     {/* plan 바 — 탭하면 바텀시트 */}
                     {!fin && pci != null && pco != null && (
-                      <div className="absolute top-0 bottom-0 bg-blue-300/40 rounded cursor-pointer z-[3]"
+                      <div className="absolute top-0 bottom-0 bg-amber-300/60 rounded cursor-pointer z-[3]"
                         style={{ left: `${mlPct(pci)}%`, width: `${Math.max(0.5, mlPct(pco) - mlPct(pci))}%` }}
                         onClick={() => setSheet({ date: dt, ci: pci, co: pco, timeOffType: pd?.timeOffType, lockedCi: ong })} />
                     )}
@@ -497,13 +497,13 @@ export default function WorktimePage() {
                     {hasA && ad!.clockIn && <span className="absolute text-gray-400 dark:text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}</span>}
                     {hasA && ad!.clockOut && <span className="absolute text-gray-400 dark:text-gray-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
                     {!fin && pm.clockIn && !hasA && (
-                      <span className="absolute text-blue-400 dark:text-blue-300 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
+                      <span className="absolute text-amber-500 dark:text-amber-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>
                     )}
                     {!fin && pm.clockOut && !(hasA && ad!.clockOut === pm.clockOut) && (
-                      <span className="absolute text-blue-400 dark:text-blue-300 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
+                      <span className="absolute text-amber-500 dark:text-amber-400 whitespace-nowrap" style={{ left: `${mlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                     )}
                     {/* plan 휴가 라벨 */}
-                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
+                    {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); const isAm = pd?.timeOffType?.startsWith("am"); const isPm = pd?.timeOffType?.startsWith("pm"); return s != null && e != null ? <span key={`ptl${j}`}>{!isPm && <span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(s)}%` }}>{fmtAmPm(r.start)}</span>}{!isAm && <span className="absolute text-purple-400 dark:text-purple-300 whitespace-nowrap" style={{ left: `${mlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span>}</span> : null; })}
                   </div>
                 </div>
               );
@@ -641,8 +641,8 @@ export default function WorktimePage() {
                             </span>;
                           }) : ad!.clockIn && <span className="absolute whitespace-nowrap text-gray-400 dark:text-gray-400" style={{ left: `${tlPct(parseHM(ad!.clockIn)!)}%` }}>{fmtAmPm(ad!.clockIn)}{ad!.restRanges && ad!.restRanges.length > 0 && <span className="text-gray-300 dark:text-gray-500 ml-1">휴게 {ad!.restRanges.length}건</span>}</span>}
                           {ad!.clockOut && <span className={`absolute whitespace-nowrap text-gray-400 dark:text-gray-400 ${ong ? "text-red-500" : ""}`} style={{ left: `${tlPct(parseHM(ad!.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(ad!.clockOut)}</span>}
-                          {ad!.timeOffRanges?.map((r, j) => <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span>)}
-                          {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); return e != null ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
+                          {ad!.timeOffRanges?.map((r, j) => { const isPm = ad!.clockOut && r.start === ad!.clockOut; return !isPm ? <span key={`to${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(parseHM(r.start)!)}%` }}>{fmtAmPm(r.start)}</span> : null; })}
+                          {ad!.timeOffRanges?.map((r, j) => { const e = parseHM(r.end); const isAm = ad!.clockIn && r.end === ad!.clockIn; return e != null && !isAm ? <span key={`te${j}`} className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span> : null; })}
                         </>
                       )}
                       {/* plan 라벨 — actual과 겹치지 않는 시간만 */}
@@ -651,12 +651,12 @@ export default function WorktimePage() {
                         const planCoSame = hasA && ad!.clockOut === pm.clockOut;
                         if (planCiSame && planCoSame) return null;
                         return <>
-                          {!planCiSame && !hasA && <span className="absolute whitespace-nowrap text-blue-400 dark:text-blue-300" style={{ left: `${tlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>}
-                          <span className="absolute whitespace-nowrap text-blue-400 dark:text-blue-300" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
+                          {!planCiSame && !hasA && <span className="absolute whitespace-nowrap text-amber-500 dark:text-amber-400" style={{ left: `${tlPct(parseHM(pm.clockIn)!)}%` }}>{fmtAmPm(pm.clockIn!)}</span>}
+                          <span className="absolute whitespace-nowrap text-amber-500 dark:text-amber-400" style={{ left: `${tlPct(parseHM(pm.clockOut)!)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(pm.clockOut!)}</span>
                         </>;
                       })()}
                       {/* plan 휴가 라벨 */}
-                      {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <span key={`ptl${j}`}><span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(s)}%` }}>{fmtAmPm(r.start)}</span><span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span></span> : null; })}
+                      {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); const isAm = pd?.timeOffType?.startsWith("am"); const isPm = pd?.timeOffType?.startsWith("pm"); return s != null && e != null ? <span key={`ptl${j}`}>{!isPm && <span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(s)}%` }}>{fmtAmPm(r.start)}</span>}{!isAm && <span className="absolute whitespace-nowrap text-purple-400 dark:text-purple-300" style={{ left: `${tlPct(e)}%`, transform: "translateX(-100%)" }}>{fmtAmPm(r.end)}</span>}</span> : null; })}
                     </div>
                   </div>
                 </div>
@@ -672,7 +672,7 @@ export default function WorktimePage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-300 rounded-full" />외근</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-full" />초과</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-300 rounded-full" />휴가</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-300/50 rounded-full" />계획</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300/60 rounded-full" />계획</span>
           </div>
           <button onClick={() => { if (confirm("계획 전부 지울까요?")) { writePlans({}); setPlansState({}); } }} className="text-gray-300 dark:text-gray-500 hover:text-red-400">계획 리셋</button>
         </div>
@@ -700,7 +700,7 @@ export default function WorktimePage() {
                   {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden">
-                  <div className="absolute top-0 bottom-0 bg-blue-300/60 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.planProjected / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="absolute top-0 bottom-0 bg-amber-300/60 rounded-l transition-all" style={{ width: `${Math.min(100, (totals.planProjected / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
