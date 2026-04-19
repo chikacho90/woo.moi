@@ -466,7 +466,9 @@ export default function WorktimePage() {
                       <div className="absolute inset-0 cursor-pointer z-[1]"
                         onClick={() => { const ci0 = aci ?? 9 * 60; const rest = restOverlap(ci0, ci0 + avgNeedPerDay + 60); setSheet({ date: dt, ci: ci0, co: ci0 + avgNeedPerDay + rest, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: true }); }} />
                     )}
-                    {/* actual 바 */}
+                    {/* actual 휴가 — clockIn 없어도 렌더링 (사내행사 등 전일 휴가) */}
+                    {hasA && am?.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`t${j}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
+                    {/* actual 근무/휴게 바 */}
                     {hasA && am && aci != null && aEnd != null && (
                       <>
                         {am.workRanges && am.workRanges.length > 0 ? am.workRanges.map((wr, j) => {
@@ -480,7 +482,6 @@ export default function WorktimePage() {
                         )}
                         {hasOt && otS != null && <div className="absolute top-0 h-[3px] bg-red-400 rounded-t" style={{ left: `${mlPct(otS)}%`, width: `${Math.max(0.2, mlPct(aEnd) - mlPct(otS))}%` }} />}
                         {am.restRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`r${j}`} className="absolute top-0 bottom-0 bg-white/50 dark:bg-neutral-950/50 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.2, mlPct(e) - mlPct(s))}%` }} /> : null; })}
-                        {am.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`t${j}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
                       </>
                     )}
                     {/* 오늘 진행중 (actual 없을 때) */}
