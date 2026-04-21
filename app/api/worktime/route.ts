@@ -236,8 +236,8 @@ export async function GET(request: Request) {
       if (ts && te) {
         timeOffRanges.push({ start: tsToHM(ts), end: tsToHM(te) });
       } else if (tb.value.allDay || tb.value.timeOffRegisterUnit === "DAY") {
-        // Flex는 사내행사/전일 휴가 같은 allDay 블록은 타임스탬프 없이 내려줌 → 표준 근무시간대로 시각화
-        timeOffRanges.push({ start: "09:00", end: "18:00" });
+        // Flex는 사내행사/전일 휴가 같은 allDay 블록은 타임스탬프 없이 내려줌 → 기본 근무시간대(10:30~19:30)로 시각화
+        timeOffRanges.push({ start: "10:30", end: "19:30" });
       }
     }
     if (dayTimeOff > 0) hasActual = true;
