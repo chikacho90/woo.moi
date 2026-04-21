@@ -9,7 +9,9 @@
     "vercel-build": "next build"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.21",
     "@types/three": "^0.183.1",
+    "leaflet": "^1.9.4",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
