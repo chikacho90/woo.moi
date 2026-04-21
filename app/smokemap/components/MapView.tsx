@@ -12,6 +12,32 @@ export default function MapView() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const leafletMapRef = useRef<any>(null);
   const [selected, setSelected] = useState<Spot | null>(null);
+  const [spots, setSpots] = useState<Spot[]>([]);
+  const [usingMock, setUsingMock] = useState(false);
+
+  // API에서 spots 가져오기, 실패시 mock 데이터 사용
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/smokemap/spots", { cache: "no-store" });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(data.spots) && data.spots.length > 0) {
+          setSpots(data.spots);
+        } else {
+          setSpots(MOCK_SPOTS);
+          setUsingMock(true);
+        }
+      } catch {
+        if (cancelled) return;
+        setSpots(MOCK_SPOTS);
+        setUsingMock(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,8 +56,32 @@ export default function MapView() {
         maxZoom: 19,
         attribution: "© OpenStreetMap",
       }).addTo(map);
+    })();
 
-      for (const spot of MOCK_SPOTS) {
+    return () => {
+      cancelled = true;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, []);
+
+  // spots 변경 시 마커 갱신
+  useEffect(() => {
+    if (!leafletMapRef.current || spots.length === 0) return;
+    const map = leafletMapRef.current;
+    let cancelled = false;
+
+    (async () => {
+      const L = (await import("leaflet")).default;
+      if (cancelled) return;
+      // 기존 마커 제거
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.eachLayer((layer: any) => {
+        if (layer instanceof L.Marker) map.removeLayer(layer);
+      });
+      for (const spot of spots) {
         const color = STATUS_COLOR[spot.status];
         const icon = L.divIcon({
           className: "smokemap-pin",
@@ -49,15 +99,8 @@ export default function MapView() {
         marker.on("click", () => setSelected(spot));
       }
     })();
-
-    return () => {
-      cancelled = true;
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-      }
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [spots]);
 
   return (
     <div className="relative w-screen h-screen">
