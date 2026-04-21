@@ -468,14 +468,14 @@ export default function WorktimePage() {
                     {/* plan 연차 — 전체 보라색 */}
                     {!fin && !hasA && pd?.timeOffType === "full" && (
                       <div className="absolute top-0 bottom-0 bg-purple-300/60 rounded cursor-pointer z-[3]" style={{ left: "0%", right: "0%" }}
-                        onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: "full" })} />
+                        onClick={() => setSheet({ date: dt, ci: 10 * 60 + 30, co: 19 * 60 + 30, timeOffType: "full" })} />
                     )}
                     {/* plan 반차/반반차 timeOff 바 */}
                     {!fin && !hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`pt${j}`} className="absolute top-0 bottom-0 bg-purple-300/60 rounded z-[2]" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
                     {/* plan 없을 때 — 탭하면 새 계획 바텀시트 (ongoing도 허용) */}
                     {!fin && (!hasA || ong) && pci == null && pd?.timeOffType !== "full" && (
                       <div className="absolute inset-0 cursor-pointer z-[1]"
-                        onClick={() => { const ci0 = aci ?? 9 * 60; const rest = restOverlap(ci0, ci0 + avgNeedPerDay + 60); setSheet({ date: dt, ci: ci0, co: ci0 + avgNeedPerDay + rest, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: true }); }} />
+                        onClick={() => { const ci0 = aci ?? (10 * 60 + 30); const co0 = aci ? ci0 + avgNeedPerDay + restOverlap(ci0, ci0 + avgNeedPerDay + 60) : (19 * 60 + 30); setSheet({ date: dt, ci: ci0, co: co0, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: true }); }} />
                     )}
                     {/* actual 휴가 — clockIn 없어도 렌더링 (사내행사 등 전일 휴가) */}
                     {hasA && am?.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`t${j}`} className="absolute top-0 bottom-0 bg-purple-300/80 rounded" style={{ left: `${mlPct(s)}%`, width: `${Math.max(0.3, mlPct(e) - mlPct(s))}%` }} /> : null; })}
@@ -592,7 +592,7 @@ export default function WorktimePage() {
                     )}
                     {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
                     {!fin && (!hasA || ong) && (
-                      <button onClick={() => { const ci0 = (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn) ?? 9 * 60; const hasPlan = pm.clockOut != null; const co0 = parseHM(pm.clockOut) ?? (() => { const r = restOverlap(ci0, ci0 + avgNeedPerDay + 60); return ci0 + avgNeedPerDay + r; })(); setSheet({ date: dt, ci: ci0, co: co0, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: !hasPlan }); }}
+                      <button onClick={() => { const aciReal = (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn); const ci0 = aciReal ?? (10 * 60 + 30); const hasPlan = pm.clockOut != null; const co0 = parseHM(pm.clockOut) ?? (aciReal ? (ci0 + avgNeedPerDay + restOverlap(ci0, ci0 + avgNeedPerDay + 60)) : (19 * 60 + 30)); setSheet({ date: dt, ci: ci0, co: co0, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: !hasPlan }); }}
                         className={`text-[10px] whitespace-nowrap rounded px-1 py-0.5 ${pd?.timeOffType ? "bg-purple-100 dark:bg-purple-950/30 text-purple-500 border border-purple-200 dark:border-purple-700" : "text-gray-300 dark:text-gray-600 hover:text-purple-400"}`}>
                         {pd?.timeOffType ? "휴" : "+휴"}
                       </button>
@@ -610,7 +610,7 @@ export default function WorktimePage() {
                       {fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
                           {pd?.timeOffType === "full" ? (
-                            <div className="absolute inset-0 bg-purple-300/60 rounded flex items-center justify-center text-[10px] text-purple-600 dark:text-purple-300 cursor-pointer" onClick={() => setSheet({ date: dt, ci: 9 * 60, co: 18 * 60, timeOffType: "full" })}>연차</div>
+                            <div className="absolute inset-0 bg-purple-300/60 rounded flex items-center justify-center text-[10px] text-purple-600 dark:text-purple-300 cursor-pointer" onClick={() => setSheet({ date: dt, ci: 10 * 60 + 30, co: 19 * 60 + 30, timeOffType: "full" })}>연차</div>
                           ) : (
                             <>
                               <div className={hasA ? "opacity-25 h-full" : "h-full"}>
