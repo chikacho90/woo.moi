@@ -18,7 +18,7 @@ type NonSmokeZone = {
   geometry: [number, number][] | null;
 };
 
-type AddMode = "choose" | "picking" | "form" | null;
+type AddMode = "choose" | "picking" | "form" | "correcting" | null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare global { interface Window { naver?: any } }
@@ -64,6 +64,8 @@ export default function MapView() {
   const [mapReady, setMapReady] = useState(false);
   const [showNonSmoke, setShowNonSmoke] = useState(true);
   const [nonSmokeZones, setNonSmokeZones] = useState<NonSmokeZone[]>([]);
+  const [correctingSpot, setCorrectingSpot] = useState<Spot | null>(null);
+  const [correctionBusy, setCorrectionBusy] = useState(false);
 
   const addModeRef = useRef<AddMode>(null);
   useEffect(() => { addModeRef.current = addMode; }, [addMode]);
@@ -293,6 +295,56 @@ export default function MapView() {
     setAddMode("form");
   }
 
+  function startCorrection(spot: Spot) {
+    const naver = window.naver;
+    const map = mapInstanceRef.current;
+    if (!naver || !map) return;
+    setSelected(null);
+    setCorrectingSpot(spot);
+    setAddMode("correcting");
+    map.setCenter(new naver.maps.LatLng(spot.lat, spot.lng));
+    map.setZoom(18);
+  }
+
+  async function submitCorrection() {
+    if (correctionBusy || !correctingSpot) return;
+    const naver = window.naver;
+    const map = mapInstanceRef.current;
+    if (!naver || !map) return;
+    setCorrectionBusy(true);
+    try {
+      const center = map.getCenter();
+      const res = await fetch(`/api/smokemap/spots/${correctingSpot.id}/correct`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: center.lat(), lng: center.lng() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(`실패: ${data.error || res.status}`);
+        return;
+      }
+      const data = await res.json();
+      alert(
+        data.total_corrections === 1
+          ? "위치 수정 제보 완료 — 바로 반영됐어요!"
+          : `위치 수정 제보 완료 (총 ${data.total_corrections}명의 제보 중 ${data.used_count}명 평균값으로 보정)`,
+      );
+      setCorrectingSpot(null);
+      setAddMode(null);
+      refresh();
+    } catch (e) {
+      alert(`오류: ${(e as Error).message}`);
+    } finally {
+      setCorrectionBusy(false);
+    }
+  }
+
+  function cancelCorrection() {
+    setCorrectingSpot(null);
+    setAddMode(null);
+  }
+
   function useGPS() {
     if (!navigator.geolocation) {
       alert("이 브라우저는 GPS를 지원하지 않아요.");
@@ -460,7 +512,59 @@ export default function MapView() {
           spot={selected}
           onClose={() => setSelected(null)}
           onAction={refresh}
+          onRequestCorrect={startCorrection}
         />
+      )}
+
+      {addMode === "correcting" && correctingSpot && (
+        <>
+          <div
+            className="absolute left-1/2 top-1/2 z-[600] pointer-events-none"
+            style={{ transform: "translate(-50%, -100%)" }}
+          >
+            <svg width="40" height="52" viewBox="0 0 40 52" fill="none">
+              <path
+                d="M20 0C9 0 0 8.8 0 19.6C0 34 20 52 20 52C20 52 40 34 40 19.6C40 8.8 31 0 20 0Z"
+                fill="#3b82f6"
+              />
+              <circle cx="20" cy="19" r="7" fill="white" />
+            </svg>
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-700 mx-auto -mt-1 opacity-60" />
+          </div>
+
+          <div
+            className="absolute left-4 right-4 z-[700] bg-white dark:bg-neutral-900 rounded-xl px-4 py-3 shadow-lg"
+            style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">📍 정확한 위치로 맞춰주세요</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  대상: {correctingSpot.name || "등록된 흡연구역"}
+                </p>
+              </div>
+              <button
+                onClick={cancelCorrection}
+                className="text-xs text-gray-500 hover:text-gray-700 shrink-0"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="absolute left-4 right-4 z-[700]"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          >
+            <button
+              onClick={submitCorrection}
+              disabled={correctionBusy}
+              className="w-full py-3.5 rounded-xl bg-blue-500 text-white text-sm font-semibold shadow-lg hover:bg-blue-600 disabled:opacity-50 active:scale-[0.99] transition"
+            >
+              {correctionBusy ? "처리 중..." : "이 위치로 수정 제보"}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

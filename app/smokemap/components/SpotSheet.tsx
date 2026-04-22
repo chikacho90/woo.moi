@@ -9,11 +9,12 @@ type Props = {
   spot: Spot;
   onClose: () => void;
   onAction: () => void;
+  onRequestCorrect: (spot: Spot) => void;
 };
 
 type Amen = { key: string; emoji: string; label: string; on: boolean };
 
-export default function SpotSheet({ spot, onClose, onAction }: Props) {
+export default function SpotSheet({ spot, onClose, onAction, onRequestCorrect }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [showComplain, setShowComplain] = useState(false);
@@ -210,14 +211,22 @@ export default function SpotSheet({ spot, onClose, onAction }: Props) {
               )}
             </div>
 
-            {/* 사라진 흡연구역 */}
-            <button
-              onClick={() => rate("inappropriate")}
-              disabled={busy}
-              className="mt-3 text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
-            >
-              사라진 흡연구역인가요?
-            </button>
+            {/* 위치 수정 & 사라진 흡연구역 */}
+            <div className="mt-3 flex items-center gap-4">
+              <button
+                onClick={() => onRequestCorrect(spot)}
+                className="text-xs text-gray-500 hover:text-gray-800 underline underline-offset-2"
+              >
+                📍 위치 수정 제보
+              </button>
+              <button
+                onClick={() => rate("inappropriate")}
+                disabled={busy}
+                className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
+              >
+                사라진 흡연구역인가요?
+              </button>
+            </div>
 
             {msg && (
               <p className="text-xs text-center mt-3 text-gray-500">{msg}</p>
