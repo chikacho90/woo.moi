@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 type ZoneRow = {
   id: number;
   name: string | null;
-  category: "school" | "kindergarten" | "hospital" | "park" | "public" | "street";
+  category: "school" | "kindergarten" | "hospital";
   lat: number;
   lng: number;
   radius_m: number;

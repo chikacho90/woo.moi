@@ -18,8 +18,6 @@ const CATEGORY_RADIUS = {
   school: 30,
   kindergarten: 10,
   hospital: 50,
-  park: 100,
-  public: 40,
 };
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
@@ -143,12 +141,12 @@ async function main() {
   await applySchema();
   await wipeOsmRows();
 
+  // 국민건강증진법상 확정 금연구역만: 학교/유치원 경계 10m + 의료기관
   const schools = await fetchCategory('["amenity"="school"]', "school");
   const kinders = await fetchCategory('["amenity"="kindergarten"]', "kindergarten");
   const hospitals = await fetchCategory('["amenity"="hospital"]', "hospital");
-  const parks = await fetchCategory('["leisure"="park"]', "park");
 
-  const all = [...schools, ...kinders, ...hospitals, ...parks];
+  const all = [...schools, ...kinders, ...hospitals];
   console.log(`[geom seed] total fetched: ${all.length}`);
 
   await insertBatch(all);

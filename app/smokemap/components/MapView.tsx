@@ -219,21 +219,7 @@ export default function MapView() {
       const color = CATEGORY_COLOR[z.category];
       const hasGeom = Array.isArray(z.geometry) && z.geometry.length >= 2;
 
-      if (z.category === "street" && hasGeom) {
-        // 금연거리 — 도로선 따라 얇은 폴리라인
-        const path = z.geometry!.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
-        const line = new naver.maps.Polyline({
-          map,
-          path,
-          strokeColor: color,
-          strokeOpacity: 0.28,
-          strokeWeight: 7,
-          strokeLineCap: "round",
-          strokeLineJoin: "round",
-          clickable: false,
-        });
-        nonSmokeOverlaysRef.current.push(line);
-      } else if (hasGeom && z.geometry!.length >= 3) {
+      if (hasGeom && z.geometry!.length >= 3) {
         // 건물·공원 등 폴리곤 — 중복 누적으로 진해지지 않게 fill 낮춤
         const paths = z.geometry!.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
         const polygon = new naver.maps.Polygon({
