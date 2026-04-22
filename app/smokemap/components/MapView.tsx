@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { MOCK_SPOTS } from "../mock-data";
 import type { Spot } from "../types";
@@ -13,31 +13,23 @@ export default function MapView() {
   const leafletMapRef = useRef<any>(null);
   const [selected, setSelected] = useState<Spot | null>(null);
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [usingMock, setUsingMock] = useState(false);
 
-  // API에서 spots 가져오기, 실패시 mock 데이터 사용
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/smokemap/spots", { cache: "no-store" });
-        if (!res.ok) throw new Error(`${res.status}`);
-        const data = await res.json();
-        if (cancelled) return;
-        if (Array.isArray(data.spots) && data.spots.length > 0) {
-          setSpots(data.spots);
-        } else {
-          setSpots(MOCK_SPOTS);
-          setUsingMock(true);
-        }
-      } catch {
-        if (cancelled) return;
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/smokemap/spots", { cache: "no-store" });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data.spots) && data.spots.length > 0) {
+        setSpots(data.spots);
+      } else {
         setSpots(MOCK_SPOTS);
-        setUsingMock(true);
       }
-    })();
-    return () => { cancelled = true; };
+    } catch {
+      setSpots(MOCK_SPOTS);
+    }
   }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +124,13 @@ export default function MapView() {
         +
       </button>
 
-      {selected && <SpotSheet spot={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <SpotSheet
+          spot={selected}
+          onClose={() => setSelected(null)}
+          onAction={refresh}
+        />
+      )}
     </div>
   );
 }

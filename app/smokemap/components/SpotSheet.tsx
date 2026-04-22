@@ -1,11 +1,20 @@
 "use client";
 
-import type { Spot } from "../types";
+import { useState } from "react";
+import type { Spot, SmokerRating, ResidentReason } from "../types";
 import { STATUS_LABEL } from "../types";
 
-type Props = { spot: Spot; onClose: () => void };
+type Props = {
+  spot: Spot;
+  onClose: () => void;
+  onAction: () => void;
+};
 
-export default function SpotSheet({ spot, onClose }: Props) {
+export default function SpotSheet({ spot, onClose, onAction }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [showReasons, setShowReasons] = useState(false);
+
   const am = spot.amenities;
   const amenityList = [
     am.ashtray && "재떨이",
@@ -16,17 +25,62 @@ export default function SpotSheet({ spot, onClose }: Props) {
     am.size === "small" && "좁음",
   ].filter(Boolean);
 
+  async function rate(rating: SmokerRating) {
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/smokemap/spots/${spot.id}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      setMsg("평가 완료");
+      onAction();
+      setTimeout(onClose, 700);
+    } catch {
+      setMsg("실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function complain(reason?: ResidentReason) {
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/smokemap/spots/${spot.id}/complain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason || null }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      setMsg("제보 완료");
+      onAction();
+      setTimeout(onClose, 700);
+    } catch {
+      setMsg("실패");
+    } finally {
+      setBusy(false);
+      setShowReasons(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-20" onClick={onClose}>
       <div className="absolute inset-0 bg-black/20" />
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl max-h-[80vh] overflow-y-auto"
+        className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5 pb-8">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
-              <h2 className="text-base font-semibold">{spot.name || "등록된 흡연구역"}</h2>
+              <h2 className="text-base font-semibold">
+                {spot.name || "등록된 흡연구역"}
+              </h2>
               {spot.address && (
                 <p className="text-xs text-gray-500 mt-0.5">{spot.address}</p>
               )}
@@ -87,26 +141,79 @@ export default function SpotSheet({ spot, onClose }: Props) {
           <div className="space-y-2">
             <div className="text-xs text-gray-500">흡연자 평가</div>
             <div className="grid grid-cols-3 gap-2">
-              <button className="py-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm hover:bg-emerald-200 transition">
+              <button
+                disabled={busy}
+                onClick={() => rate("comfortable")}
+                className="py-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm hover:bg-emerald-200 disabled:opacity-50 transition"
+              >
                 🟢 쾌적
               </button>
-              <button className="py-2.5 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 transition">
+              <button
+                disabled={busy}
+                onClick={() => rate("ok")}
+                className="py-2.5 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 disabled:opacity-50 transition"
+              >
                 ⚪ OK
               </button>
-              <button className="py-2.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm hover:bg-red-200 transition">
+              <button
+                disabled={busy}
+                onClick={() => rate("inappropriate")}
+                className="py-2.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm hover:bg-red-200 disabled:opacity-50 transition"
+              >
                 🔴 부적절
               </button>
             </div>
 
             <div className="text-xs text-gray-500 pt-2">주민/비흡연자</div>
-            <button className="w-full py-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-sm hover:bg-orange-200 transition">
-              ⚠️ 불편 신고
-            </button>
+            {!showReasons ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  disabled={busy}
+                  onClick={() => complain()}
+                  className="py-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-sm hover:bg-orange-200 disabled:opacity-50 transition"
+                >
+                  ⚠️ 불편 신고
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => setShowReasons(true)}
+                  className="py-2.5 rounded-lg bg-white dark:bg-neutral-800 border border-orange-200 dark:border-orange-900/50 text-orange-700 dark:text-orange-300 text-sm hover:bg-orange-50 disabled:opacity-50 transition"
+                >
+                  사유 선택
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { k: "smoke", l: "연기·냄새" },
+                    { k: "butts", l: "꽁초 투기" },
+                    { k: "sensitive_area", l: "민감지역" },
+                    { k: "other", l: "기타" },
+                  ] as { k: ResidentReason; l: string }[]
+                ).map(({ k, l }) => (
+                  <button
+                    key={k}
+                    disabled={busy}
+                    onClick={() => complain(k)}
+                    className="py-2 rounded-lg bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 text-xs hover:bg-orange-100 disabled:opacity-50 transition"
+                  >
+                    {l}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowReasons(false)}
+                  className="col-span-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+                >
+                  취소
+                </button>
+              </div>
+            )}
           </div>
 
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-4">
-            * 버튼 동작은 DB 연결 후 작동합니다 (스캐폴드)
-          </p>
+          {msg && (
+            <p className="text-xs text-center mt-3 text-gray-500">{msg}</p>
+          )}
         </div>
       </div>
     </div>
