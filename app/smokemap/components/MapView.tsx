@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MOCK_SPOTS } from "../mock-data";
 import type { Spot } from "../types";
 import { STATUS_COLOR, STATUS_LABEL } from "../types";
+import { NONSMOKE_ZONES, CATEGORY_COLOR } from "../nonsmoke-data";
 import SpotSheet from "./SpotSheet";
 import AddSpotSheet from "./AddSpotSheet";
 
@@ -43,12 +44,15 @@ export default function MapView() {
   const userMarkerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const spotMarkersRef = useRef<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nonSmokeOverlaysRef = useRef<any[]>([]);
 
   const [selected, setSelected] = useState<Spot | null>(null);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [pending, setPending] = useState<{ lat: number; lng: number } | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [showNonSmoke, setShowNonSmoke] = useState(true);
 
   const addModeRef = useRef<AddMode>(null);
   useEffect(() => { addModeRef.current = addMode; }, [addMode]);
@@ -152,6 +156,35 @@ export default function MapView() {
       }
     };
   }, []);
+
+  // 금연구역 오버레이 (토글에 따라 표시/제거)
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    const naver = window.naver;
+    if (!naver) return;
+    const map = mapInstanceRef.current;
+
+    for (const o of nonSmokeOverlaysRef.current) o.setMap(null);
+    nonSmokeOverlaysRef.current = [];
+
+    if (!showNonSmoke) return;
+
+    for (const z of NONSMOKE_ZONES) {
+      const color = CATEGORY_COLOR[z.category];
+      const circle = new naver.maps.Circle({
+        map,
+        center: new naver.maps.LatLng(z.lat, z.lng),
+        radius: z.radiusM,
+        strokeColor: color,
+        strokeOpacity: 0.6,
+        strokeWeight: 1,
+        fillColor: color,
+        fillOpacity: 0.18,
+        clickable: false,
+      });
+      nonSmokeOverlaysRef.current.push(circle);
+    }
+  }, [showNonSmoke, mapReady]);
 
   // spots 변경 시 마커 갱신
   useEffect(() => {
@@ -262,14 +295,36 @@ export default function MapView() {
       )}
 
       {!selected && !addMode && (
-        <button
-          className="absolute right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center justify-center"
-          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
-          onClick={() => setAddMode("choose")}
-          aria-label="흡연구역 등록"
-        >
-          +
-        </button>
+        <>
+          {/* 금연구역 토글 */}
+          <button
+            onClick={() => setShowNonSmoke((v) => !v)}
+            className="absolute right-6 z-[500] px-3 py-2 rounded-full bg-white dark:bg-neutral-900 shadow-lg text-xs font-medium flex items-center gap-1.5 hover:bg-gray-50 dark:hover:bg-neutral-800 transition"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 92px)" }}
+          >
+            <span>🚭 금연구역</span>
+            <span
+              className={`inline-block w-8 h-4 rounded-full relative transition ${
+                showNonSmoke ? "bg-emerald-500" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                  showNonSmoke ? "left-4" : "left-0.5"
+                }`}
+              />
+            </span>
+          </button>
+
+          <button
+            className="absolute right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center justify-center"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+            onClick={() => setAddMode("choose")}
+            aria-label="흡연구역 등록"
+          >
+            +
+          </button>
+        </>
       )}
 
       {addMode === "choose" && (
