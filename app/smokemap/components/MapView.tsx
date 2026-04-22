@@ -16,6 +16,8 @@ export default function MapView() {
   const leafletMapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pickMarkerRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userMarkerRef = useRef<any>(null);
   const [selected, setSelected] = useState<Spot | null>(null);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
@@ -60,6 +62,29 @@ export default function MapView() {
         attribution: "© OpenStreetMap",
       }).addTo(map);
 
+      // 현재 위치로 이동 + 유저 위치 마커
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (cancelled || !leafletMapRef.current) return;
+            const { latitude: lat, longitude: lng } = pos.coords;
+            const userIcon = L.divIcon({
+              className: "smokemap-user",
+              html: `<div style="position:relative;width:20px;height:20px">
+                <div style="position:absolute;inset:0;border-radius:50%;background:#3b82f6;opacity:0.25;transform:scale(2.2)"></div>
+                <div style="position:absolute;inset:0;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>
+              </div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
+            userMarkerRef.current = L.marker([lat, lng], { icon: userIcon, interactive: false }).addTo(map);
+            map.setView([lat, lng], 16);
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+        );
+      }
+
       // 지도 클릭: add 모드 'picking'일 때만 위치 캡처
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.on("click", (e: any) => {
@@ -100,7 +125,11 @@ export default function MapView() {
       // 기존 spot 마커만 제거 (pickMarker 보존)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.eachLayer((layer: any) => {
-        if (layer instanceof L.Marker && layer !== pickMarkerRef.current) {
+        if (
+          layer instanceof L.Marker &&
+          layer !== pickMarkerRef.current &&
+          layer !== userMarkerRef.current
+        ) {
           map.removeLayer(layer);
         }
       });
