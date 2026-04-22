@@ -93,7 +93,10 @@ export default function MapView() {
         center: new naver.maps.LatLng(37.5665, 126.978),
         zoom: 12,
         zoomControl: true,
-        zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT },
+        zoomControlOptions: { position: naver.maps.Position.RIGHT_CENTER },
+        logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
+        mapDataControl: false,
+        scaleControl: false,
       });
       mapInstanceRef.current = map;
       setMapReady(true);
@@ -228,27 +231,24 @@ export default function MapView() {
   }
 
   return (
-    <div className="relative w-screen h-screen">
-      <div ref={mapRef} className="w-full h-full z-0" />
+    <div className="relative w-screen h-screen overflow-hidden">
+      <div ref={mapRef} className="absolute inset-0 z-0" />
 
-      <div className="absolute top-4 left-4 right-4 z-[500] flex items-center gap-2 pointer-events-none">
-        <div className="pointer-events-auto bg-white dark:bg-neutral-900 rounded-full px-4 py-2 shadow-md text-sm font-semibold">
+      {/* 상단 브랜드 — safe area 고려 */}
+      <div
+        className="absolute left-4 z-[500] pointer-events-none"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+      >
+        <div className="pointer-events-auto bg-white/95 dark:bg-neutral-900/95 backdrop-blur rounded-full px-4 py-2 shadow-md text-sm font-semibold">
           🚬 smokemap
-        </div>
-        <div className="flex gap-2 text-[11px] pointer-events-auto">
-          {(["active", "warning", "nosmoking"] as const).map((s) => (
-            <span
-              key={s}
-              className="bg-white dark:bg-neutral-900 rounded-full px-2 py-1 shadow-sm"
-            >
-              {STATUS_LABEL[s]}
-            </span>
-          ))}
         </div>
       </div>
 
       {addMode === "picking" && (
-        <div className="absolute top-20 left-4 right-4 z-[500] bg-emerald-500 text-white rounded-lg px-4 py-3 shadow-lg flex items-center justify-between gap-3">
+        <div
+          className="absolute left-4 right-4 z-[500] bg-emerald-500 text-white rounded-lg px-4 py-3 shadow-lg flex items-center justify-between gap-3"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
+        >
           <span className="text-sm font-medium">📍 지도를 탭해서 위치를 선택</span>
           <button
             onClick={cancelAdd}
@@ -260,7 +260,8 @@ export default function MapView() {
       )}
 
       <button
-        className="absolute bottom-6 right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition"
+        className="absolute right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center justify-center"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
         onClick={() => setAddMode("choose")}
         aria-label="흡연구역 등록"
       >
