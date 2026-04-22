@@ -4,9 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MOCK_SPOTS } from "../mock-data";
 import type { Spot } from "../types";
 import { STATUS_COLOR, STATUS_LABEL } from "../types";
-import { NONSMOKE_ZONES, CATEGORY_COLOR } from "../nonsmoke-data";
+import { CATEGORY_COLOR, type NonSmokeCategory } from "../nonsmoke-data";
 import SpotSheet from "./SpotSheet";
 import AddSpotSheet from "./AddSpotSheet";
+
+type NonSmokeZone = {
+  id: number;
+  name: string | null;
+  category: NonSmokeCategory;
+  lat: number;
+  lng: number;
+  radius_m: number;
+};
 
 type AddMode = "choose" | "picking" | "form" | null;
 
@@ -53,6 +62,7 @@ export default function MapView() {
   const [pending, setPending] = useState<{ lat: number; lng: number } | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [showNonSmoke, setShowNonSmoke] = useState(true);
+  const [nonSmokeZones, setNonSmokeZones] = useState<NonSmokeZone[]>([]);
 
   const addModeRef = useRef<AddMode>(null);
   useEffect(() => { addModeRef.current = addMode; }, [addMode]);
@@ -157,7 +167,42 @@ export default function MapView() {
     };
   }, []);
 
-  // 금연구역 오버레이 (토글에 따라 표시/제거)
+  // 지도 이동 시 현재 bbox로 금연구역 fetch (debounced)
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    if (!showNonSmoke) { setNonSmokeZones([]); return; }
+    const naver = window.naver;
+    if (!naver) return;
+    const map = mapInstanceRef.current;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const fetchZones = async () => {
+      try {
+        const bounds = map.getBounds();
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+        const res = await fetch(
+          `/api/smokemap/nonsmoke?sw=${sw.lat()},${sw.lng()}&ne=${ne.lat()},${ne.lng()}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.zones)) setNonSmokeZones(data.zones);
+      } catch {}
+    };
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fetchZones, 300);
+    };
+    schedule();
+    const listener = naver.maps.Event.addListener(map, "idle", schedule);
+    return () => {
+      if (timer) clearTimeout(timer);
+      naver.maps.Event.removeListener(listener);
+    };
+  }, [showNonSmoke, mapReady]);
+
+  // 금연구역 오버레이 렌더
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     const naver = window.naver;
@@ -169,22 +214,22 @@ export default function MapView() {
 
     if (!showNonSmoke) return;
 
-    for (const z of NONSMOKE_ZONES) {
+    for (const z of nonSmokeZones) {
       const color = CATEGORY_COLOR[z.category];
       const circle = new naver.maps.Circle({
         map,
         center: new naver.maps.LatLng(z.lat, z.lng),
-        radius: z.radiusM,
+        radius: z.radius_m,
         strokeColor: color,
-        strokeOpacity: 0.6,
+        strokeOpacity: 0.5,
         strokeWeight: 1,
         fillColor: color,
-        fillOpacity: 0.18,
+        fillOpacity: 0.15,
         clickable: false,
       });
       nonSmokeOverlaysRef.current.push(circle);
     }
-  }, [showNonSmoke, mapReady]);
+  }, [nonSmokeZones, showNonSmoke, mapReady]);
 
   // spots 변경 시 마커 갱신
   useEffect(() => {
