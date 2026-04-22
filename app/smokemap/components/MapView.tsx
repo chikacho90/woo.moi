@@ -94,9 +94,6 @@ export default function MapView() {
         zoom: 12,
         zoomControl: true,
         zoomControlOptions: { position: naver.maps.Position.RIGHT_CENTER },
-        logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
-        mapDataControl: false,
-        scaleControl: false,
       });
       mapInstanceRef.current = map;
       setMapReady(true);
@@ -232,7 +229,11 @@ export default function MapView() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      <div ref={mapRef} className="absolute inset-0 z-0" />
+      <div
+        ref={mapRef}
+        className="w-full h-full"
+        style={{ minHeight: "100vh", background: "#e7eaf0" }}
+      />
 
       {/* 상단 브랜드 — safe area 고려 */}
       <div
