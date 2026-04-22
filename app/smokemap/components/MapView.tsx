@@ -92,8 +92,7 @@ export default function MapView() {
       const map = new naver.maps.Map(mapRef.current, {
         center: new naver.maps.LatLng(37.5665, 126.978),
         zoom: 12,
-        zoomControl: true,
-        zoomControlOptions: { position: naver.maps.Position.RIGHT_CENTER },
+        zoomControl: false,
       });
       mapInstanceRef.current = map;
       setMapReady(true);
