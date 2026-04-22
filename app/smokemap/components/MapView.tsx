@@ -365,11 +365,13 @@ export default function MapView() {
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
+    <div
+      className="fixed inset-0 overflow-hidden"
+      style={{ background: "#e7eaf0" }}
+    >
       <div
         ref={mapRef}
-        className="w-full h-full"
-        style={{ minHeight: "100vh", background: "#e7eaf0" }}
+        className="absolute inset-0"
       />
 
       {/* 상단 브랜드 — safe area 고려, 시트 열렸을 땐 숨김 */}
