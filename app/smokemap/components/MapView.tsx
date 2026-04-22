@@ -235,15 +235,17 @@ export default function MapView() {
         style={{ minHeight: "100vh", background: "#e7eaf0" }}
       />
 
-      {/* 상단 브랜드 — safe area 고려 */}
-      <div
-        className="absolute left-4 z-[500] pointer-events-none"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
-      >
-        <div className="pointer-events-auto bg-white/95 dark:bg-neutral-900/95 backdrop-blur rounded-full px-4 py-2 shadow-md text-sm font-semibold">
-          🚬 smokemap
+      {/* 상단 브랜드 — safe area 고려, 시트 열렸을 땐 숨김 */}
+      {!selected && !addMode && (
+        <div
+          className="absolute left-4 z-[500] pointer-events-none"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+        >
+          <div className="pointer-events-auto bg-white/95 dark:bg-neutral-900/95 backdrop-blur rounded-full px-4 py-2 shadow-md text-sm font-semibold">
+            🚬 smokemap
+          </div>
         </div>
-      </div>
+      )}
 
       {addMode === "picking" && (
         <div
@@ -260,17 +262,19 @@ export default function MapView() {
         </div>
       )}
 
-      <button
-        className="absolute right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center justify-center"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
-        onClick={() => setAddMode("choose")}
-        aria-label="흡연구역 등록"
-      >
-        +
-      </button>
+      {!selected && !addMode && (
+        <button
+          className="absolute right-6 z-[500] w-14 h-14 rounded-full bg-emerald-500 text-white text-3xl shadow-lg hover:bg-emerald-600 active:scale-95 transition flex items-center justify-center"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          onClick={() => setAddMode("choose")}
+          aria-label="흡연구역 등록"
+        >
+          +
+        </button>
+      )}
 
       {addMode === "choose" && (
-        <div className="fixed inset-0 z-20" onClick={cancelAdd}>
+        <div className="fixed inset-0 z-[9000]" onClick={cancelAdd}>
           <div className="absolute inset-0 bg-black/20" />
           <div
             className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl p-5 pb-8"

@@ -43,7 +43,7 @@ export default function MapLinkModal({ lat, lng, name, onClose }: Props) {
   ];
 
   return (
-    <div className="fixed inset-0 z-30" onClick={onClose}>
+    <div className="fixed inset-0 z-[9500]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div
         className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl p-4 pb-8"

@@ -47,7 +47,7 @@ export default function AddSpotSheet({ lat, lng, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-20" onClick={onClose}>
+    <div className="fixed inset-0 z-[9000]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/20" />
       <div
         className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto"
