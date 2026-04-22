@@ -8,8 +8,10 @@ export const metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#10b981",
+  themeColor: "#0a0a0a",
 };
 
 export default function SmokeMapPage() {

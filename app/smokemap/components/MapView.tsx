@@ -374,10 +374,30 @@ export default function MapView() {
   }
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100dvh",
+        overflow: "hidden",
+      }}
+    >
       <div
         ref={mapRef}
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", background: "#e7eaf0" }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          height: "100%",
+          background: "#e7eaf0",
+        }}
       />
 
       {/* 상단 브랜드 — safe area 고려, 시트 열렸을 땐 숨김 */}
