@@ -15,6 +15,7 @@ type NonSmokeZone = {
   lat: number;
   lng: number;
   radius_m: number;
+  geometry: [number, number][] | null;
 };
 
 type AddMode = "choose" | "picking" | "form" | null;
@@ -216,18 +217,35 @@ export default function MapView() {
 
     for (const z of nonSmokeZones) {
       const color = CATEGORY_COLOR[z.category];
-      const circle = new naver.maps.Circle({
-        map,
-        center: new naver.maps.LatLng(z.lat, z.lng),
-        radius: z.radius_m,
-        strokeColor: color,
-        strokeOpacity: 0.5,
-        strokeWeight: 1,
-        fillColor: color,
-        fillOpacity: 0.15,
-        clickable: false,
-      });
-      nonSmokeOverlaysRef.current.push(circle);
+      if (Array.isArray(z.geometry) && z.geometry.length >= 3) {
+        // 폴리곤 (실제 건물/부지 모양)
+        const paths = z.geometry.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
+        const polygon = new naver.maps.Polygon({
+          map,
+          paths: [paths],
+          strokeColor: color,
+          strokeOpacity: 0.7,
+          strokeWeight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.25,
+          clickable: false,
+        });
+        nonSmokeOverlaysRef.current.push(polygon);
+      } else {
+        // 원형 (node 또는 curated street)
+        const circle = new naver.maps.Circle({
+          map,
+          center: new naver.maps.LatLng(z.lat, z.lng),
+          radius: z.radius_m,
+          strokeColor: color,
+          strokeOpacity: 0.6,
+          strokeWeight: 1.5,
+          fillColor: color,
+          fillOpacity: z.category === "street" ? 0.22 : 0.15,
+          clickable: false,
+        });
+        nonSmokeOverlaysRef.current.push(circle);
+      }
     }
   }, [nonSmokeZones, showNonSmoke, mapReady]);
 

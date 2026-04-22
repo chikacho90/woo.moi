@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 type ZoneRow = {
   id: number;
   name: string | null;
-  category: "school" | "kindergarten" | "hospital" | "park" | "public";
+  category: "school" | "kindergarten" | "hospital" | "park" | "public" | "street";
   lat: number;
   lng: number;
   radius_m: number;
+  geometry: [number, number][] | null;
 };
 
 export async function GET(request: Request) {
@@ -27,14 +28,14 @@ export async function GET(request: Request) {
       const [s, w] = sw;
       const [n, e] = ne;
       rows = (await sql`
-        SELECT id, name, category, lat, lng, radius_m
+        SELECT id, name, category, lat, lng, radius_m, geometry
         FROM smokemap_nonsmoke_zones
         WHERE lat BETWEEN ${s} AND ${n} AND lng BETWEEN ${w} AND ${e}
         LIMIT 2000
       `) as unknown as ZoneRow[];
     } else {
       rows = (await sql`
-        SELECT id, name, category, lat, lng, radius_m
+        SELECT id, name, category, lat, lng, radius_m, geometry
         FROM smokemap_nonsmoke_zones
         LIMIT 2000
       `) as unknown as ZoneRow[];
