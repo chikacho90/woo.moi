@@ -2,7 +2,7 @@
 // 전국 표준데이터는 OpenAPI 인증키 필요 — 추후 API 연동 시 교체.
 // 현재는 서울 주요 학교/병원/어린이공원을 수기로 반영.
 
-export type NonSmokeCategory = "school" | "hospital" | "park" | "public";
+export type NonSmokeCategory = "school" | "kindergarten" | "hospital" | "park" | "public" | "street";
 
 export type NonSmokeZone = {
   id: string;
@@ -16,16 +16,20 @@ export type NonSmokeZone = {
 
 export const CATEGORY_COLOR: Record<NonSmokeCategory, string> = {
   school: "#f59e0b",     // amber
+  kindergarten: "#fb923c",   // orange
   hospital: "#ef4444",   // red
   park: "#84cc16",       // lime
   public: "#6366f1",     // indigo
+  street: "#db2777",     // pink/rose — 금연거리 구분
 };
 
 export const CATEGORY_LABEL: Record<NonSmokeCategory, string> = {
   school: "학교/어린이보호",
+  kindergarten: "유치원",
   hospital: "의료기관 주변",
   park: "공원/어린이공원",
   public: "공공기관 주변",
+  street: "금연거리",
 };
 
 export const NONSMOKE_ZONES: NonSmokeZone[] = [
