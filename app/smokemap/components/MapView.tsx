@@ -217,31 +217,47 @@ export default function MapView() {
 
     for (const z of nonSmokeZones) {
       const color = CATEGORY_COLOR[z.category];
-      if (Array.isArray(z.geometry) && z.geometry.length >= 3) {
-        // 폴리곤 (실제 건물/부지 모양)
-        const paths = z.geometry.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
+      const hasGeom = Array.isArray(z.geometry) && z.geometry.length >= 2;
+
+      if (z.category === "street" && hasGeom) {
+        // 금연거리 — 실제 도로선 따라 두꺼운 폴리라인
+        const path = z.geometry!.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
+        const line = new naver.maps.Polyline({
+          map,
+          path,
+          strokeColor: color,
+          strokeOpacity: 0.45,
+          strokeWeight: 12,
+          strokeLineCap: "round",
+          strokeLineJoin: "round",
+          clickable: false,
+        });
+        nonSmokeOverlaysRef.current.push(line);
+      } else if (hasGeom && z.geometry!.length >= 3) {
+        // 건물·공원 등 폴리곤
+        const paths = z.geometry!.map(([lat, lng]) => new naver.maps.LatLng(lat, lng));
         const polygon = new naver.maps.Polygon({
           map,
           paths: [paths],
           strokeColor: color,
-          strokeOpacity: 0.7,
-          strokeWeight: 1.5,
+          strokeOpacity: 0.5,
+          strokeWeight: 1,
           fillColor: color,
-          fillOpacity: 0.25,
+          fillOpacity: 0.22,
           clickable: false,
         });
         nonSmokeOverlaysRef.current.push(polygon);
       } else {
-        // 원형 (node 또는 curated street)
+        // 폴백 — 노드(점) 기반 시설
         const circle = new naver.maps.Circle({
           map,
           center: new naver.maps.LatLng(z.lat, z.lng),
           radius: z.radius_m,
           strokeColor: color,
-          strokeOpacity: 0.6,
-          strokeWeight: 1.5,
+          strokeOpacity: 0.5,
+          strokeWeight: 1,
           fillColor: color,
-          fillOpacity: z.category === "street" ? 0.22 : 0.15,
+          fillOpacity: 0.18,
           clickable: false,
         });
         nonSmokeOverlaysRef.current.push(circle);

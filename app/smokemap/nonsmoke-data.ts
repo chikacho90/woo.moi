@@ -14,13 +14,15 @@ export type NonSmokeZone = {
   finePenalty?: string; // "10만원 과태료" 등
 };
 
+// 모든 금연구역은 통일된 붉은색 — 카테고리 구분은 없앰
+const NONSMOKE_RED = "#dc2626";
 export const CATEGORY_COLOR: Record<NonSmokeCategory, string> = {
-  school: "#f59e0b",     // amber
-  kindergarten: "#fb923c",   // orange
-  hospital: "#ef4444",   // red
-  park: "#84cc16",       // lime
-  public: "#6366f1",     // indigo
-  street: "#db2777",     // pink/rose — 금연거리 구분
+  school: NONSMOKE_RED,
+  kindergarten: NONSMOKE_RED,
+  hospital: NONSMOKE_RED,
+  park: NONSMOKE_RED,
+  public: NONSMOKE_RED,
+  street: NONSMOKE_RED,
 };
 
 export const CATEGORY_LABEL: Record<NonSmokeCategory, string> = {
