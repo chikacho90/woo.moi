@@ -36,6 +36,27 @@ export default function AddSpotSheet({ lat, lng, onClose, onSaved }: Props) {
           amenities,
         }),
       });
+
+      // 근처 중복 스팟 있을 때 (409) — 기존 스팟에 확인 투표로 전환
+      if (res.status === 409) {
+        const data = await res.json();
+        const spotName = data?.spot?.name || "등록된 흡연구역";
+        const dist = data?.distance_m ?? "?";
+        const spotId = data?.spot?.id;
+        if (!spotId) throw new Error("중복 응답 형식 오류");
+        const confirmMsg = `근처 ${dist}m 이내에 이미 "${spotName}"이(가) 등록돼 있어요.\n새로 만들지 않고 해당 스팟에 "흡연가능" 확인 투표로 처리할게요. 계속할까요?`;
+        if (!confirm(confirmMsg)) { setBusy(false); return; }
+        const rateRes = await fetch(`/api/smokemap/spots/${spotId}/rate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating: "ok" }),
+        });
+        if (!rateRes.ok) throw new Error(`투표 실패 ${rateRes.status}`);
+        onSaved();
+        onClose();
+        return;
+      }
+
       if (!res.ok) throw new Error(`${res.status}`);
       onSaved();
       onClose();

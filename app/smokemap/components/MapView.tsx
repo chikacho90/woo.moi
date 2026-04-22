@@ -112,25 +112,7 @@ export default function MapView() {
       mapInstanceRef.current = map;
       setMapReady(true);
 
-      // 지도 클릭 → add 모드 picking 일 때만 위치 캡처
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      naver.maps.Event.addListener(map, "click", (e: any) => {
-        if (addModeRef.current !== "picking") return;
-        const coord = e.coord;
-        const lat = coord.lat();
-        const lng = coord.lng();
-        if (pickMarkerRef.current) pickMarkerRef.current.setMap(null);
-        pickMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(lat, lng),
-          map,
-          icon: {
-            content: `<div style="width:22px;height:22px;border-radius:50%;background:#10b981;border:3px solid white;box-shadow:0 4px 10px rgba(0,0,0,0.3)"></div>`,
-            anchor: new naver.maps.Point(11, 11),
-          },
-        });
-        setPending({ lat, lng });
-        setAddMode("form");
-      });
+      // 지도 탭 리스너 제거 — 중앙 핀 드래그 방식으로 전환
 
       // 현재 위치 센터링 + 유저 마커
       if (navigator.geolocation) {
@@ -302,7 +284,16 @@ export default function MapView() {
     }
   }
 
-  async function useGPS() {
+  function confirmCenterLocation() {
+    const naver = window.naver;
+    const map = mapInstanceRef.current;
+    if (!naver || !map) return;
+    const center = map.getCenter();
+    setPending({ lat: center.lat(), lng: center.lng() });
+    setAddMode("form");
+  }
+
+  function useGPS() {
     if (!navigator.geolocation) {
       alert("이 브라우저는 GPS를 지원하지 않아요.");
       return;
@@ -313,19 +304,8 @@ export default function MapView() {
         const map = mapInstanceRef.current;
         if (!naver || !map) return;
         const { latitude: lat, longitude: lng } = pos.coords;
-        if (pickMarkerRef.current) pickMarkerRef.current.setMap(null);
-        pickMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(lat, lng),
-          map,
-          icon: {
-            content: `<div style="width:22px;height:22px;border-radius:50%;background:#10b981;border:3px solid white;box-shadow:0 4px 10px rgba(0,0,0,0.3)"></div>`,
-            anchor: new naver.maps.Point(11, 11),
-          },
-        });
         map.setCenter(new naver.maps.LatLng(lat, lng));
         map.setZoom(17);
-        setPending({ lat, lng });
-        setAddMode("form");
       },
       (err) => alert(`GPS 오류: ${err.message}`),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -353,18 +333,51 @@ export default function MapView() {
       )}
 
       {addMode === "picking" && (
-        <div
-          className="absolute left-4 right-4 z-[500] bg-emerald-500 text-white rounded-lg px-4 py-3 shadow-lg flex items-center justify-between gap-3"
-          style={{ top: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
-        >
-          <span className="text-sm font-medium">📍 지도를 탭해서 위치를 선택</span>
-          <button
-            onClick={cancelAdd}
-            className="text-xs bg-white/20 hover:bg-white/30 rounded-full px-3 py-1"
+        <>
+          {/* 중앙 고정 핀 (당근 스타일) */}
+          <div
+            className="absolute left-1/2 top-1/2 z-[600] pointer-events-none"
+            style={{ transform: "translate(-50%, -100%)" }}
           >
-            취소
-          </button>
-        </div>
+            <svg width="40" height="52" viewBox="0 0 40 52" fill="none">
+              <path
+                d="M20 0C9 0 0 8.8 0 19.6C0 34 20 52 20 52C20 52 40 34 40 19.6C40 8.8 31 0 20 0Z"
+                fill="#10b981"
+              />
+              <circle cx="20" cy="19" r="7" fill="white" />
+            </svg>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-700 mx-auto -mt-1 opacity-60" />
+          </div>
+
+          {/* 상단 안내 배너 */}
+          <div
+            className="absolute left-4 right-4 z-[700] bg-white dark:bg-neutral-900 rounded-xl px-4 py-3 shadow-lg flex items-center justify-between gap-3"
+            style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+          >
+            <span className="text-sm font-medium">
+              📍 지도를 움직여 위치를 맞춰주세요
+            </span>
+            <button
+              onClick={cancelAdd}
+              className="text-xs text-gray-500 hover:text-gray-700 shrink-0"
+            >
+              취소
+            </button>
+          </div>
+
+          {/* 하단 확정 CTA */}
+          <div
+            className="absolute left-4 right-4 z-[700]"
+            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          >
+            <button
+              onClick={confirmCenterLocation}
+              className="w-full py-3.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold shadow-lg hover:bg-emerald-600 active:scale-[0.99] transition"
+            >
+              이 위치로 설정
+            </button>
+          </div>
+        </>
       )}
 
       {!selected && !addMode && (
@@ -407,22 +420,20 @@ export default function MapView() {
             className="absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-xl p-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-base font-semibold mb-4">📍 위치 지정</h2>
-            <div className="grid grid-cols-2 gap-3">
+            <h2 className="text-base font-semibold mb-1">📍 위치 지정 방식</h2>
+            <p className="text-xs text-gray-500 mb-4">지도를 움직여 중앙 핀으로 정확한 위치를 맞춰주세요.</p>
+            <div className="grid grid-cols-1 gap-2">
               <button
-                onClick={() => {
-                  setAddMode(null);
-                  useGPS();
-                }}
-                className="py-4 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm hover:bg-emerald-200 transition"
+                onClick={() => { setAddMode("picking"); useGPS(); }}
+                className="py-3.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition"
               >
-                🧭 현재 GPS 위치
+                🧭 GPS 위치에서 시작
               </button>
               <button
                 onClick={() => setAddMode("picking")}
-                className="py-4 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 transition"
+                className="py-3.5 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 transition"
               >
-                🗺️ 지도 탭으로 선택
+                🗺️ 현재 보이는 지도에서 시작
               </button>
             </div>
             <button

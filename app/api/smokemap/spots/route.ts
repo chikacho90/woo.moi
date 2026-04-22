@@ -81,6 +81,20 @@ export async function GET() {
   }
 }
 
+// 두 좌표 사이 거리(m) — Haversine 공식
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+const DUP_RADIUS_M = 25;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -92,6 +106,29 @@ export async function POST(request: Request) {
     const name = typeof body.name === "string" ? body.name.slice(0, 200) : null;
     const address = typeof body.address === "string" ? body.address.slice(0, 500) : null;
     const amenities = (body.amenities && typeof body.amenities === "object") ? body.amenities : {};
+
+    // 중복 체크 — 25m 이내 기존 스팟 존재 시 블록
+    // 대략적인 bbox 필터로 좁힌 뒤 정확한 거리 계산
+    const deg = DUP_RADIUS_M / 111000; // 1 deg ~= 111km
+    const nearby = (await sql`
+      SELECT id, lat, lng, name
+      FROM smokemap_spots
+      WHERE lat BETWEEN ${lat - deg} AND ${lat + deg}
+        AND lng BETWEEN ${lng - deg * 2} AND ${lng + deg * 2}
+    `) as unknown as { id: number; lat: number; lng: number; name: string | null }[];
+    for (const s of nearby) {
+      const d = haversine(lat, lng, s.lat, s.lng);
+      if (d <= DUP_RADIUS_M) {
+        return NextResponse.json(
+          {
+            duplicate: true,
+            distance_m: Math.round(d),
+            spot: { id: s.id, lat: s.lat, lng: s.lng, name: s.name },
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     const anonId = await getOrCreateAnonId();
 
