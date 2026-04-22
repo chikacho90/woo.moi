@@ -114,6 +114,15 @@ export default function MapView() {
       mapInstanceRef.current = map;
       setMapReady(true);
 
+      // iOS Safari에서 뷰포트 변화(URL바 표시/숨김) 대응 — 맵 크기 재계산
+      const refresh = () => {
+        try { naver.maps.Event.trigger(map, "resize"); } catch {}
+      };
+      setTimeout(refresh, 50);
+      setTimeout(refresh, 500);
+      window.addEventListener("resize", refresh);
+      window.addEventListener("orientationchange", refresh);
+
       // 지도 탭 리스너 제거 — 중앙 핀 드래그 방식으로 전환
 
       // 현재 위치 센터링 + 유저 마커
@@ -365,13 +374,10 @@ export default function MapView() {
   }
 
   return (
-    <div
-      className="fixed inset-0 overflow-hidden"
-      style={{ background: "#e7eaf0" }}
-    >
+    <div className="fixed inset-0 overflow-hidden">
       <div
         ref={mapRef}
-        className="absolute inset-0"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", background: "#e7eaf0" }}
       />
 
       {/* 상단 브랜드 — safe area 고려, 시트 열렸을 땐 숨김 */}
