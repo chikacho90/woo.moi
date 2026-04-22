@@ -27,18 +27,19 @@ export async function GET(request: Request) {
     ) {
       const [s, w] = sw;
       const [n, e] = ne;
+      // bbox 크기 제한: 대각 폭이 ~0.03도(약 3km) 초과면 거부 (줌아웃 전체 지도 과부하 방지)
+      const span = Math.max(Math.abs(n - s), Math.abs(e - w));
+      if (span > 0.035) {
+        return NextResponse.json({ zones: [] });
+      }
       rows = (await sql`
         SELECT id, name, category, lat, lng, radius_m, geometry
         FROM smokemap_nonsmoke_zones
         WHERE lat BETWEEN ${s} AND ${n} AND lng BETWEEN ${w} AND ${e}
-        LIMIT 2000
+        LIMIT 500
       `) as unknown as ZoneRow[];
     } else {
-      rows = (await sql`
-        SELECT id, name, category, lat, lng, radius_m, geometry
-        FROM smokemap_nonsmoke_zones
-        LIMIT 2000
-      `) as unknown as ZoneRow[];
+      rows = [];
     }
 
     return NextResponse.json({ zones: rows });

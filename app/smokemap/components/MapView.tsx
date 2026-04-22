@@ -169,6 +169,7 @@ export default function MapView() {
   }, []);
 
   // 지도 이동 시 현재 bbox로 금연구역 fetch (debounced)
+  // 퍼포먼스 보호: 줌 15 미만이면 조회·렌더 건너뜀 (화면에 너무 많은 폴리곤 쌓이는 것 방지)
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     if (!showNonSmoke) { setNonSmokeZones([]); return; }
@@ -176,9 +177,16 @@ export default function MapView() {
     if (!naver) return;
     const map = mapInstanceRef.current;
 
+    const MIN_ZOOM = 15;
+
     let timer: ReturnType<typeof setTimeout> | null = null;
     const fetchZones = async () => {
       try {
+        const zoom = map.getZoom();
+        if (zoom < MIN_ZOOM) {
+          setNonSmokeZones([]);
+          return;
+        }
         const bounds = map.getBounds();
         const sw = bounds.getSW();
         const ne = bounds.getNE();
@@ -193,7 +201,7 @@ export default function MapView() {
     };
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(fetchZones, 300);
+      timer = setTimeout(fetchZones, 350);
     };
     schedule();
     const listener = naver.maps.Event.addListener(map, "idle", schedule);
