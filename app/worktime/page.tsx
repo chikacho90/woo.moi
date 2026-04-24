@@ -83,7 +83,9 @@ function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: s
   } else { timeOffMin = plan?.timeOffMin || 0; }
   return { date, weeklyHoliday: actual?.weeklyHoliday || false, clockIn: ci, clockOut: co, workMin, restMin, timeOffMin, hasActual: false, source: plan && (ci || co || plan.timeOffMin || toType) ? "plan" : "empty", timeOffRanges: timeOffRanges.length > 0 ? timeOffRanges : undefined };
 }
-function recMin(d: MergedDay) { return Math.min(d.workMin || 0, WORK_CAP_MIN) + (d.timeOffMin || 0); }
+function recMin(d: MergedDay) {
+  return Math.min((d.workMin || 0) + (d.timeOffMin || 0), WORK_CAP_MIN);
+}
 function isFinal(d: MergedDay) { if (d.source !== "actual") return false; if (!d.ongoing) return true; return d.date < new Date().toISOString().slice(0, 10); }
 function weekDates(f: string, t: string) { const out: string[] = []; const s = new Date(f + "T00:00:00+09:00"), e = new Date(t + "T00:00:00+09:00"); for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) out.push(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)); return out; }
 function otStartMin(ci: number, rest: number, off: number) { return ci + Math.max(0, DAILY_TARGET_MIN - off) + rest; }
@@ -257,41 +259,35 @@ export default function WorktimePage() {
   const merged = useMemo(() => data ? dates.map((dt) => mergeDay(byDate.get(dt), plans[dt], dt)) : [], [data, dates, plans, byDate]);
   const totals = useMemo(() => {
     let actual = 0, planProjected = 0;
-    let aWork = 0, aVac = 0, pWork = 0, pVac = 0;
+    let aRec = 0, pRec = 0;
     for (let i = 0; i < merged.length; i++) {
       const d = merged[i], dt = dates[i], pd = plans[dt], ad = byDate.get(dt);
       if (d.source === "actual") {
-        actual += recMin(d);
-        aWork += Math.min(d.workMin || 0, WORK_CAP_MIN);
-        aVac += d.timeOffMin || 0;
+        const r = recMin(d);
+        actual += r;
+        aRec += r;
         if (isFinal(d)) {
-          // 확정된 날: 실제 시간이 계획을 대체
-          planProjected += recMin(d);
+          planProjected += r;
         } else if (d.ongoing && pd) {
-          // 근무 중: 계획 recMin 기본, 실제 출근이 늦으면 차이만큼 깎음
           const planDay = mergeDay(undefined, pd, dt);
           const planCi = parseHM(pd.clockIn);
           const actualCi = ad ? parseHM(ad.clockIn) : null;
           const planBase = recMin(planDay);
           const lateDiff = (actualCi != null && planCi != null && actualCi > planCi) ? (actualCi - planCi) : 0;
-          planProjected += Math.max(0, planBase - lateDiff);
-          // ongoing의 plan 잔여분을 plan 세그먼트에 추가
-          const pWorkExtra = Math.max(0, Math.min(planDay.workMin || 0, WORK_CAP_MIN) - Math.min(d.workMin || 0, WORK_CAP_MIN) - lateDiff);
-          const pVacExtra = Math.max(0, (planDay.timeOffMin || 0) - (d.timeOffMin || 0));
-          pWork += pWorkExtra;
-          pVac += pVacExtra;
+          const planRem = Math.max(0, planBase - lateDiff - r);
+          planProjected += r + planRem;
+          pRec += planRem;
         } else {
-          // ongoing이지만 계획 없음: 실제 시간 사용
-          planProjected += recMin(d);
+          planProjected += r;
         }
       } else if (d.source === "plan") {
-        planProjected += recMin(d);
-        pWork += Math.min(d.workMin || 0, WORK_CAP_MIN);
-        pVac += d.timeOffMin || 0;
+        const r = recMin(d);
+        planProjected += r;
+        pRec += r;
       }
     }
     const planDiff = planProjected - WEEK_REQUIRED_MIN;
-    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff, aWork, aVac, pWork, pVac };
+    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff, aRec, pRec };
   }, [merged, plans, dates, byDate]);
 
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
@@ -447,11 +443,21 @@ export default function WorktimePage() {
                         className={`text-[11px] font-mono rounded px-1 py-0.5 ${todayClockIn ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600" : "border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"}`}>
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)!)) : "출근"}
                       </button>
-                    ) : (
-                      <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
-                        {fmtDur(rec)}{rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}
-                      </span>
-                    )}
+                    ) : (() => {
+                      const actualTotal = (d.workMin || 0) + (d.timeOffMin || 0);
+                      const overCap = actualTotal > WORK_CAP_MIN;
+                      return (
+                        <span className={`text-[11px] font-mono rounded px-1 py-0.5 ${rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
+                          {overCap ? (
+                            <>
+                              <span className="opacity-60 font-normal">실 {fmtDur(actualTotal)} /</span> 인정 {fmtDur(rec)}
+                            </>
+                          ) : (
+                            <>{fmtDur(rec)}{rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}</>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {/* 타임라인 바 */}
                   <div className="relative" style={{ height: "18px" }}>
@@ -585,11 +591,23 @@ export default function WorktimePage() {
                       >
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)! - (nowMin > REST_START && parseHM(todayClockIn)! < REST_END ? Math.min(60, nowMin - REST_START) : 0))) : "출근 입력"}
                       </button>
-                    ) : (
-                      <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${pd?.timeOffType ? "text-gray-600 dark:text-gray-400" : rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
-                        {pd?.timeOffType ? PLAN_TO_LABELS[pd.timeOffType] : fmtDur(rec)}{!pd?.timeOffType && rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}
-                      </span>
-                    )}
+                    ) : (() => {
+                      const actualTotal = (d.workMin || 0) + (d.timeOffMin || 0);
+                      const overCap = actualTotal > WORK_CAP_MIN;
+                      return (
+                        <span className={`text-[12px] font-mono whitespace-nowrap rounded-md px-1.5 py-0.5 ${pd?.timeOffType ? "text-gray-600 dark:text-gray-400" : rec === 0 ? "border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500" : rec >= DAILY_TARGET_MIN ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}`}>
+                          {pd?.timeOffType ? (
+                            PLAN_TO_LABELS[pd.timeOffType]
+                          ) : overCap ? (
+                            <>
+                              <span className="opacity-60 font-normal">실 {fmtDur(actualTotal)} /</span> 인정 {fmtDur(rec)}
+                            </>
+                          ) : (
+                            <>{fmtDur(rec)}{rec > 0 && fmtDiff(rec) ? ` ${fmtDiff(rec)}` : ""}</>
+                          )}
+                        </span>
+                      );
+                    })()}
                     {/* 휴가/계획 설정 버튼 — 확정 안 된 날 (ongoing 포함) */}
                     {!fin && (!hasA || ong) && (
                       <button onClick={() => { const aciReal = (ong && ad?.clockIn ? parseHM(ad.clockIn) : null) ?? parseHM(pm.clockIn); const ci0 = aciReal ?? (10 * 60 + 30); const hasPlan = pm.clockOut != null; const co0 = parseHM(pm.clockOut) ?? (aciReal ? (ci0 + avgNeedPerDay + restOverlap(ci0, ci0 + avgNeedPerDay + 60)) : (19 * 60 + 30)); setSheet({ date: dt, ci: ci0, co: co0, timeOffType: pd?.timeOffType, lockedCi: ong, suggestedCo: !hasPlan }); }}
@@ -698,10 +716,8 @@ export default function WorktimePage() {
                   {totals.planDiff >= 0 ? "+" : "-"}{fmtDur(Math.abs(totals.planDiff))}
                 </span>
                 <div className="relative h-[18px] bg-gray-100 dark:bg-neutral-800 rounded overflow-hidden flex">
-                  <div className="bg-amber-300 transition-all" style={{ width: `${Math.min(100, (totals.aWork / WEEK_MAX_MIN) * 100)}%` }} />
-                  <div className="bg-purple-300/80 transition-all" style={{ width: `${Math.min(100, (totals.aVac / WEEK_MAX_MIN) * 100)}%` }} />
-                  <div className="bg-amber-300/60 transition-all" style={{ width: `${Math.min(100, (totals.pWork / WEEK_MAX_MIN) * 100)}%` }} />
-                  <div className="bg-purple-300/60 transition-all" style={{ width: `${Math.min(100, (totals.pVac / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="bg-amber-300 transition-all" style={{ width: `${Math.min(100, (totals.aRec / WEEK_MAX_MIN) * 100)}%` }} />
+                  <div className="bg-amber-300/55 transition-all" style={{ width: `${Math.min(100, (totals.pRec / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
                 <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>

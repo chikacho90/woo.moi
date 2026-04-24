@@ -245,6 +245,9 @@ export async function GET(request: Request) {
     if (hasActual) actualMin += workMin;
     totalTimeOff += dayTimeOff;
 
+    // 일별 인정 근무시간: min(근무 + 휴가, 540=9h)
+    const recognizedMin = Math.min(workMin + dayTimeOff, 540);
+
     days.push({
       date,
       weeklyHoliday: isHoliday,
@@ -253,6 +256,7 @@ export async function GET(request: Request) {
       workMin,
       restMin,
       timeOffMin: dayTimeOff,
+      recognizedMin,
       hasActual,
       ...(ongoing && { ongoing: true }),
       ...(workRanges.length > 0 && { workRanges }),
@@ -261,7 +265,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const doneMin = days.reduce((sum, d) => sum + Math.min(d.workMin, 540) + d.timeOffMin, 0);
+  const doneMin = days.reduce((sum, d) => sum + d.recognizedMin, 0);
 
   return NextResponse.json({
     updatedAt: new Date().toISOString(),
