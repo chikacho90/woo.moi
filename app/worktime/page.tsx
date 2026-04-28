@@ -86,7 +86,7 @@ function mergeDay(actual: DayRec | undefined, plan: PlanDay | undefined, date: s
 function recMin(d: MergedDay) {
   return Math.min((d.workMin || 0) + (d.timeOffMin || 0), WORK_CAP_MIN);
 }
-function isFinal(d: MergedDay) { if (d.source !== "actual") return false; if (!d.ongoing) return true; return d.date < new Date().toISOString().slice(0, 10); }
+function isFinal(d: MergedDay, today: string) { if (d.source !== "actual") return false; if (!d.ongoing) return true; return today !== "" && d.date < today; }
 function weekDates(f: string, t: string) { const out: string[] = []; const s = new Date(f + "T00:00:00+09:00"), e = new Date(t + "T00:00:00+09:00"); for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) out.push(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)); return out; }
 function otStartMin(ci: number, rest: number, off: number) { return ci + Math.max(0, DAILY_TARGET_MIN - off) + rest; }
 
@@ -170,10 +170,9 @@ function EditableTimeline({ day, onChange, onClear }: { day: MergedDay; onChange
 }
 
 // ─── Readonly Timeline ───
-function ReadonlyTimeline({ day }: { day: MergedDay }) {
+function ReadonlyTimeline({ day, nowMin }: { day: MergedDay; nowMin: number }) {
   const ci = parseHM(day.clockIn), co = parseHM(day.clockOut);
-  const now = new Date().getHours() * 60 + new Date().getMinutes();
-  const end = co != null ? co : day.ongoing ? now : null;
+  const end = co != null ? co : day.ongoing ? nowMin : null;
   const ot = ci != null ? otStartMin(ci, day.restMin, day.timeOffMin) : null;
   const hasOt = ot != null && end != null && end > ot;
   return (
@@ -216,7 +215,23 @@ export default function WorktimePage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
   const [todayClockIn, setTodayClockIn] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [nowMin, setNowMin] = useState(0);
+  const [todayStr, setTodayStr] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollInitDone = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const tick = () => {
+      const d = new Date();
+      setNowMin(d.getHours() * 60 + d.getMinutes());
+      setTodayStr(d.toISOString().slice(0, 10));
+    };
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // 오늘 출근시간 localStorage 관리
   useEffect(() => {
@@ -239,9 +254,28 @@ export default function WorktimePage() {
 
   const [weekOfDate, setWeekOfDate] = useState("");
   useEffect(() => { const d = new Date(); d.setDate(d.getDate() + weekOffset * 7); setWeekOfDate(d.toISOString().slice(0, 10)); }, [weekOffset]);
-  const refresh = useCallback(async () => { try { setLoading(true); const r = await fetch(`/api/worktime?weekOf=${weekOfDate}`, { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status}`); setData(await r.json()); setError(null); } catch (e) { setError((e as Error).message); } finally { setLoading(false); } }, [weekOfDate]);
+  const refresh = useCallback(async () => {
+    if (!weekOfDate) return;
+    try {
+      setLoading(true);
+      const r = await fetch(`/api/worktime?weekOf=${weekOfDate}`, { cache: "no-store" });
+      if (!r.ok) {
+        let detail = `${r.status}`;
+        try { const body = await r.json(); detail = `${r.status} ${body?.error || ""} sched=${body?.schedStatus ?? "?"} attr=${body?.attrStatus ?? "?"}`; } catch {}
+        throw new Error(detail);
+      }
+      setData(await r.json());
+      setError(null);
+    } catch (e) { setError((e as Error).message); }
+    finally { setLoading(false); }
+  }, [weekOfDate]);
   useEffect(() => { setPlansState(readPlans()); refresh(); const id = setInterval(refresh, 60_000); return () => clearInterval(id); }, [refresh]);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollLeft = tlPx(8 * 60); }, [data]);
+  useEffect(() => {
+    if (data && scrollRef.current && !scrollInitDone.current) {
+      scrollRef.current.scrollLeft = tlPx(8 * 60);
+      scrollInitDone.current = true;
+    }
+  }, [data]);
 
   function goToDate(dateStr: string) {
     const target = new Date(dateStr + "T00:00:00+09:00");
@@ -266,7 +300,7 @@ export default function WorktimePage() {
         const r = recMin(d);
         actual += r;
         aRec += r;
-        if (isFinal(d)) {
+        if (isFinal(d, todayStr)) {
           planProjected += r;
         } else if (d.ongoing && pd) {
           const planDay = mergeDay(undefined, pd, dt);
@@ -288,7 +322,7 @@ export default function WorktimePage() {
     }
     const planDiff = planProjected - WEEK_REQUIRED_MIN;
     return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff, aRec, pRec };
-  }, [merged, plans, dates, byDate]);
+  }, [merged, plans, dates, byDate, todayStr]);
 
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
   const { hints: dayHints, avgPerDay: avgNeedPerDay } = useMemo(() => {
@@ -302,7 +336,7 @@ export default function WorktimePage() {
       const di = new Date(dt + "T00:00:00+09:00").getDay();
       const isWe = di === 0 || di === 6;
       if (isWe || d.weeklyHoliday) continue;
-      const settled = isFinal(d) || (d.source === "plan") || (d.source === "actual" && d.ongoing && pd);
+      const settled = isFinal(d, todayStr) || (d.source === "plan") || (d.source === "actual" && d.ongoing && pd);
       if (settled) {
         if (d.source === "actual" && d.ongoing && pd) {
           // ongoing+계획: 계획 recMin 기준, 늦은 만큼 깎음
@@ -328,10 +362,8 @@ export default function WorktimePage() {
       hints[dt] = { type: "avg", min: avgPerDay };
     }
     return { hints, avgPerDay };
-  }, [merged, dates, byDate, plans]);
+  }, [merged, dates, byDate, plans, todayStr]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const isCur = weekOffset === 0;
 
   // 모바일 감지
@@ -365,6 +397,8 @@ export default function WorktimePage() {
     setThemeMode((m) => m === "light" ? "dark" : m === "dark" ? "system" : "light");
   }
   const themeIcon = themeMode === "light" ? "☀️" : themeMode === "dark" ? "🌙" : "💻";
+
+  if (!mounted) return <div className="h-[100dvh] bg-white dark:bg-neutral-950" suppressHydrationWarning />;
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-white dark:bg-neutral-950 text-gray-900 dark:text-gray-100 transition-colors" onClick={() => calOpen && setCalOpen(false)}>
@@ -415,7 +449,7 @@ export default function WorktimePage() {
               const isT = dt === todayStr, dow = getDow(dt);
               const di = new Date(dt + "T00:00:00+09:00").getDay();
               const isWe = di === 0 || di === 6;
-              const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
+              const hasA = ad?.hasActual || false, fin = isFinal(d, todayStr), ong = hasA && !fin;
               let pm = mergeDay(undefined, pd, dt);
               if (isT && hasA && ad!.clockIn && pm.clockIn) {
                 const aci = parseHM(ad!.clockIn), pci = parseHM(pm.clockIn), pco = parseHM(pm.clockOut);
@@ -554,7 +588,7 @@ export default function WorktimePage() {
               const isT = dt === todayStr, dow = getDow(dt);
               const di = new Date(dt + "T00:00:00+09:00").getDay();
               const isWe = di === 0 || di === 6;
-              const hasA = ad?.hasActual || false, fin = isFinal(d), ong = hasA && !fin;
+              const hasA = ad?.hasActual || false, fin = isFinal(d, todayStr), ong = hasA && !fin;
               let pm = mergeDay(undefined, pd, dt);
               // 오늘 + actual 출근시간이 있으면 계획 시작시간을 actual에 맞춤
               if (isT && hasA && ad!.clockIn && pm.clockIn) {
@@ -625,7 +659,7 @@ export default function WorktimePage() {
                     {isCur && <div className="absolute top-0 bottom-0 w-[1.5px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />}
 
                     <div className="relative" style={{ height: "22px", marginTop: "1px" }}>
-                      {fin ? <ReadonlyTimeline day={am!} /> : (
+                      {fin ? <ReadonlyTimeline day={am!} nowMin={nowMin} /> : (
                         <>
                           {pd?.timeOffType === "full" ? (
                             <div className="absolute inset-0 bg-purple-300/60 rounded flex items-center justify-center text-[10px] text-purple-600 dark:text-purple-300 cursor-pointer" onClick={() => setSheet({ date: dt, ci: 10 * 60 + 30, co: 19 * 60 + 30, timeOffType: "full" })}>연차</div>
@@ -638,7 +672,7 @@ export default function WorktimePage() {
                               {!hasA && pm.timeOffRanges?.map((r, j) => { const s = parseHM(r.start), e = parseHM(r.end); return s != null && e != null ? <div key={`pt${j}`} className="absolute top-0 bottom-0 bg-purple-300/60 rounded pointer-events-none" style={{ left: `${tlPct(s)}%`, width: `${Math.max(0.3, tlPct(e) - tlPct(s))}%` }} /> : null; })}
                             </>
                           )}
-                          {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} /></div>}
+                          {am && <div className="absolute inset-0 pointer-events-none"><ReadonlyTimeline day={am} nowMin={nowMin} /></div>}
                           {/* 오늘 + actual 없음 + 출근시간 있음 → 출근~현재 진행중 바 */}
                           {isT && !hasA && (() => {
                             const ci = todayClockIn ? parseHM(todayClockIn) : (pm.clockIn ? parseHM(pm.clockIn) : null);
