@@ -1,8 +1,10 @@
 "use client";
-import { useReducer, useEffect, useRef, useCallback, useState, useMemo } from "react";
-import { plannerReducer, initialState } from "./reducer";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
+import { initialState } from "./reducer";
 import type { PlannerState } from "./types";
 import { CURRENCY_OPTIONS } from "./types";
+import { validateState } from "./storage";
+import { useHistoryReducer } from "./useHistoryReducer";
 import ScheduleGrid from "./components/ScheduleGrid";
 import CardPool from "./components/CardPool";
 import TripPanel from "./components/TripPanel";
@@ -16,23 +18,14 @@ function loadState(): PlannerState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parsed = JSON.parse(raw) as any;
-    // migrate: add trip if missing
-    if (!parsed.trip) {
-      parsed.trip = { ...initialState.trip };
-    }
-    if (parsed.ui && !("showTripPanel" in parsed.ui)) {
-      parsed.ui.showTripPanel = false;
-    }
-    return parsed;
+    return validateState(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
 export default function WoorldPage() {
-  const [state, dispatch] = useReducer(plannerReducer, initialState);
+  const [state, dispatch, history] = useHistoryReducer(initialState);
   const [mounted, setMounted] = useState(false);
 
   // Hydrate from localStorage after mount to avoid SSR mismatch
@@ -40,19 +33,48 @@ export default function WoorldPage() {
     const saved = loadState();
     if (saved) dispatch({ type: "LOAD", state: saved });
     setMounted(true);
-  }, []);
+  }, [dispatch]);
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z or Ctrl+Y (redo)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      const ctrl = e.metaKey || e.ctrlKey;
+      if (!ctrl) return;
+      if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        if (e.shiftKey) history.redo();
+        else history.undo();
+      } else if (e.key === "y" || e.key === "Y") {
+        e.preventDefault();
+        history.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history]);
 
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [cardModalOpen, setCardModalOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const lastSuggestKey = useRef<string>("");
+  const inflightAbort = useRef<AbortController | null>(null);
+  const existingCardsRef = useRef(state.cards);
+  existingCardsRef.current = state.cards;
 
   // Auto-suggest cards when destination changes (and optionally days)
   const fetchSuggestions = useCallback(async (destination: string, dayCount?: number) => {
     const key = `${destination}::${dayCount ?? ""}`;
     if (key === lastSuggestKey.current) return;
     lastSuggestKey.current = key;
+
+    if (inflightAbort.current) inflightAbort.current.abort();
+    const abort = new AbortController();
+    inflightAbort.current = abort;
 
     setSuggesting(true);
     setSuggestError(null);
@@ -66,7 +88,9 @@ export default function WoorldPage() {
           styles: state.trip.tags.length > 0 ? state.trip.tags : undefined,
           budget: state.trip.budget ? String(Math.round(state.trip.budget / 10000)) : undefined,
         }),
+        signal: abort.signal,
       });
+      if (abort.signal.aborted) return;
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
         const msg = errData?.error === "API key not configured"
@@ -75,9 +99,16 @@ export default function WoorldPage() {
         throw new Error(msg);
       }
       const data = await res.json();
+      if (abort.signal.aborted) return;
       if (data.cards?.length) {
-        // Add each suggested card with a unique ID
+        // Dedup: skip cards whose (name, category) already exists in pool/placed
+        const existing = new Set(
+          existingCardsRef.current.map((c) => `${c.category}::${c.name}`)
+        );
         for (const card of data.cards) {
+          const sig = `${card.category}::${card.name}`;
+          if (existing.has(sig)) continue;
+          existing.add(sig);
           dispatch({
             type: "ADD_CARD",
             card: {
@@ -91,9 +122,13 @@ export default function WoorldPage() {
         }
       }
     } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") return;
       setSuggestError(err instanceof Error ? err.message : "추천 실패");
     } finally {
-      setSuggesting(false);
+      if (inflightAbort.current === abort) {
+        inflightAbort.current = null;
+        setSuggesting(false);
+      }
     }
   }, [state.trip.tags, state.trip.budget, dispatch]);
 
@@ -172,6 +207,32 @@ export default function WoorldPage() {
               )}
             </div>
             <div className="flex gap-1.5 flex-shrink-0">
+              <button
+                onClick={history.undo}
+                disabled={!history.canUndo}
+                title="실행 취소 (Ctrl+Z)"
+                className="px-2 py-1.5 rounded-lg text-xs transition-colors"
+                style={{
+                  background: history.canUndo ? "rgba(255,255,255,0.08)" : "transparent",
+                  color: history.canUndo ? "#ccc" : "rgba(255,255,255,0.2)",
+                  cursor: history.canUndo ? "pointer" : "not-allowed",
+                }}
+              >
+                ↶
+              </button>
+              <button
+                onClick={history.redo}
+                disabled={!history.canRedo}
+                title="다시 실행 (Ctrl+Shift+Z)"
+                className="px-2 py-1.5 rounded-lg text-xs transition-colors"
+                style={{
+                  background: history.canRedo ? "rgba(255,255,255,0.08)" : "transparent",
+                  color: history.canRedo ? "#ccc" : "rgba(255,255,255,0.2)",
+                  cursor: history.canRedo ? "pointer" : "not-allowed",
+                }}
+              >
+                ↷
+              </button>
               <button
                 onClick={() => dispatch({ type: "SET_UI", ui: { showTripPanel: !state.ui.showTripPanel } })}
                 className="px-2.5 py-1.5 rounded-lg text-xs transition-colors"
