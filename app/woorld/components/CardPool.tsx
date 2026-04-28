@@ -1,5 +1,5 @@
 "use client";
-import type { PlannerState, CardCategory, SlotType } from "../types";
+import type { PlannerState, CardCategory } from "../types";
 import { CATEGORY_COLORS, parseSlotKey } from "../types";
 import { isCompatible } from "../reducer";
 import type { PlannerAction } from "../reducer";
@@ -44,8 +44,7 @@ export default function CardPool({ state, dispatch, onAddCard }: Props) {
   const handleCardTap = (cardId: string) => {
     // If in slot-selecting mode, place the card
     if (ui.mode === "slot-selecting" && ui.activeSlotKey) {
-      const [dayId, ...slotParts] = ui.activeSlotKey.split("-");
-      const slot = slotParts.join("-") as SlotType;
+      const { dayId, slot } = parseSlotKey(ui.activeSlotKey);
       const day = days.find((d) => d.id === dayId);
       const card = cards.find((c) => c.id === cardId);
       if (card && day && isCompatible(card, day, slot)) {
