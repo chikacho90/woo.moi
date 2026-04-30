@@ -474,6 +474,11 @@ export default function WorktimePage() {
                         </span>
                       );
                     })()}
+                    {dayHints[dt]?.type === "exit" && (
+                      <span className="ml-auto text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        ⏱ {fmtAmPm(fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin))} 퇴근
+                      </span>
+                    )}
                   </div>
                   {/* 타임라인 바 */}
                   <div className="relative" style={{ height: "18px" }}>
@@ -527,22 +532,10 @@ export default function WorktimePage() {
                       if (ci == null || nowMin <= ci) return null;
                       return <div className="absolute top-0 bottom-0 rounded bg-amber-300/70 animate-pulse" style={{ left: `${mlPct(ci)}%`, width: `${Math.max(0.3, mlPct(nowMin) - mlPct(ci))}%` }} />;
                     })()}
-                    {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                    {dayHints[dt] && (() => {
-                      const h = dayHints[dt];
-                      if (h.type === "exit") {
-                        const leftPct = mlPct(h.leaveMin);
-                        return (
-                          <>
-                            <div className="absolute top-0 bottom-0 w-[1.5px] bg-emerald-500 z-[5]" style={{ left: `${leftPct}%` }} />
-                            <span className="absolute text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold pointer-events-none whitespace-nowrap" style={{ left: `${leftPct}%`, transform: "translate(-100%, -100%)", top: "0" }}>
-                              ⏱ {fmtAmPm(fmtHM(h.leaveMin))}
-                            </span>
-                          </>
-                        );
-                      }
-                      return <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur(h.min)} 필요</span>;
-                    })()}
+                    {/* 미확정 빈 요일 — 평균 필요시간 텍스트만 (퇴근시각 힌트는 위 라인 우측에) */}
+                    {dayHints[dt]?.type === "avg" && (
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur((dayHints[dt] as { type: "avg"; min: number }).min)} 필요</span>
+                    )}
                   </div>
                   {/* 라벨 */}
                   <div className="relative text-[9px] mt-0.5 h-3">
@@ -654,6 +647,11 @@ export default function WorktimePage() {
                         {pd?.timeOffType ? "휴" : "+휴"}
                       </button>
                     )}
+                    {dayHints[dt]?.type === "exit" && (
+                      <span className="ml-auto text-[12px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        ⏱ {fmtAmPm(fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin))} 퇴근
+                      </span>
+                    )}
                   </div>
 
                   {/* Timeline area */}
@@ -693,22 +691,10 @@ export default function WorktimePage() {
                           })()}
                         </>
                       )}
-                      {/* 빈 요일 평균 / 퇴근 예상 힌트 */}
-                      {dayHints[dt] && (() => {
-                        const h = dayHints[dt];
-                        if (h.type === "exit") {
-                          const leftPct = tlPct(h.leaveMin);
-                          return (
-                            <>
-                              <div className="absolute top-0 bottom-0 w-[1.5px] bg-emerald-500 z-[5]" style={{ left: `${leftPct}%` }} />
-                              <span className="absolute text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold pointer-events-none whitespace-nowrap" style={{ left: `${leftPct}%`, transform: "translate(-100%, -100%)", top: "0" }}>
-                                ⏱ {fmtAmPm(fmtHM(h.leaveMin))}
-                              </span>
-                            </>
-                          );
-                        }
-                        return <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur(h.min)} 필요</span>;
-                      })()}
+                      {/* 미확정 빈 요일 평균 텍스트 (퇴근시각은 좌측 라벨 우측에) */}
+                      {dayHints[dt]?.type === "avg" && (
+                        <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 dark:text-gray-500 pointer-events-none">{fmtDur((dayHints[dt] as { type: "avg"; min: number }).min)} 필요</span>
+                      )}
                     </div>
 
                     {/* 라벨: 한 줄에 actual + plan 합침 */}
