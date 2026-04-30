@@ -238,17 +238,19 @@ export async function GET(request: Request) {
     const workMin = Math.max(0, grossMin - restMin);
 
     const timeOffRanges: { start: string; end: string }[] = [];
+    let allDayTimeOff = false;
     for (const tb of timeOffBlocks) {
       dayTimeOff += tb.value.usedMinutes || 0;
       const ts = tb.value.startTimestamp?.timestamp;
       const te = tb.value.endTimestampExclusive?.timestamp;
-      if (ts && te) {
+      if (tb.value.allDay || tb.value.timeOffRegisterUnit === "DAY") {
+        allDayTimeOff = true;
+      } else if (ts && te) {
         timeOffRanges.push({ start: tsToHM(ts), end: tsToHM(te) });
-      } else if (tb.value.allDay || tb.value.timeOffRegisterUnit === "DAY") {
-        // Flex는 사내행사/전일 휴가 같은 allDay 블록은 타임스탬프 없이 내려줌 → 기본 근무시간대(10:30~19:30)로 시각화
-        timeOffRanges.push({ start: "10:30", end: "19:30" });
       }
     }
+    // 8시간 이상 사용한 휴가도 전일 블록으로 처리 (timestamp 있어도)
+    if (!allDayTimeOff && dayTimeOff >= 480) allDayTimeOff = true;
     if (dayTimeOff > 0) hasActual = true;
 
     if (hasActual) actualMin += workMin;
@@ -267,6 +269,7 @@ export async function GET(request: Request) {
       timeOffMin: dayTimeOff,
       recognizedMin,
       hasActual,
+      ...(allDayTimeOff && { allDayTimeOff: true }),
       ...(holidayName && { holidayName }),
       ...(ongoing && { ongoing: true }),
       ...(workRanges.length > 0 && { workRanges }),

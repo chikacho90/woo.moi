@@ -8,7 +8,7 @@ type DayRec = {
   date: string; weeklyHoliday?: boolean; holidayName?: string;
   clockIn: string | null; clockOut: string | null;
   workMin: number; restMin: number; timeOffMin: number;
-  hasActual: boolean; ongoing?: boolean;
+  hasActual: boolean; ongoing?: boolean; allDayTimeOff?: boolean;
   workRanges?: WorkRange[];
   restRanges?: TimeRange[]; timeOffRanges?: TimeRange[];
 };
@@ -486,8 +486,8 @@ export default function WorktimePage() {
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
-                    {/* 공휴일/노동절 등 — 보라색 전일 블록 (휴가 색상 동일) */}
-                    {ad?.weeklyHoliday && (
+                    {/* 공휴일/전일 휴가 — 가로 가득 보라 블록 */}
+                    {(ad?.weeklyHoliday || ad?.allDayTimeOff) && (
                       <div className="absolute top-0 bottom-0 bg-purple-300/80 rounded z-[2]" style={{ left: "0%", right: "0%" }} />
                     )}
                     {/* plan 바 — 탭하면 바텀시트 */}
@@ -664,6 +664,8 @@ export default function WorktimePage() {
                     <div className="relative" style={{ height: "22px", marginTop: "1px" }}>
                       {ad?.weeklyHoliday ? (
                         <div className="absolute inset-0 bg-purple-300/80 rounded flex items-center justify-center text-[10px] text-purple-700 dark:text-purple-200">{ad.holidayName || "휴일"}</div>
+                      ) : ad?.allDayTimeOff ? (
+                        <div className="absolute inset-0 bg-purple-300/80 rounded flex items-center justify-center text-[10px] text-purple-700 dark:text-purple-200">전일 휴가</div>
                       ) : fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
                           {pd?.timeOffType === "full" ? (
