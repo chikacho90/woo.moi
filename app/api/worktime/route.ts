@@ -50,16 +50,17 @@ type FlexTimeBlock = {
   };
 };
 
+type DayOff = { type: string; name?: string };
 type FlexDaySchedule = {
   date: string;
-  dayOffs: { type: string }[];
+  dayOffs: DayOff[];
   timeBlocks: FlexTimeBlock[];
 };
 
 type FlexDateAttr = {
   date: string;
   usualWorkingMinutes: number;
-  dayOffs: { type: string }[];
+  dayOffs: { type: string; name?: string }[];
 };
 
 export async function GET(request: Request) {
