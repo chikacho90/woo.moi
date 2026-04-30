@@ -144,10 +144,14 @@ export async function GET(request: Request) {
     const sched = schedByDate.get(date);
     const attr = attrByDate.get(date);
 
-    requiredMin += attr?.usualWorkingMinutes || 0;
-
-    const isHoliday =
-      sched?.dayOffs?.some((o) => o.type === "WEEKLY_HOLIDAY" || o.type === "REST_DAY") || false;
+    // 공휴일/근로자의날 등은 dayOffs(attr 또는 sched)에 항목 있음 — 필수시간 0 처리
+    const dayOffsAll = [
+      ...(attr?.dayOffs || []),
+      ...(sched?.dayOffs || []),
+    ];
+    const isHoliday = dayOffsAll.length > 0;
+    requiredMin += isHoliday ? 0 : (attr?.usualWorkingMinutes || 0);
+    const holidayName = dayOffsAll.find((o) => (o as { name?: string }).name)?.name as string | undefined;
 
     const workBlocks = sched?.timeBlocks?.filter((b) => b.type === "WORK") || [];
     const restBlocks = sched?.timeBlocks?.filter((b) => b.type === "REST") || [];
@@ -258,6 +262,7 @@ export async function GET(request: Request) {
       timeOffMin: dayTimeOff,
       recognizedMin,
       hasActual,
+      ...(holidayName && { holidayName }),
       ...(ongoing && { ongoing: true }),
       ...(workRanges.length > 0 && { workRanges }),
       ...(restRanges.length > 0 && { restRanges }),

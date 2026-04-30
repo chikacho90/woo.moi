@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 type TimeRange = { start: string; end: string };
 type WorkRange = { start: string; end: string; remote: boolean };
 type DayRec = {
-  date: string; weeklyHoliday?: boolean;
+  date: string; weeklyHoliday?: boolean; holidayName?: string;
   clockIn: string | null; clockOut: string | null;
   workMin: number; restMin: number; timeOffMin: number;
   hasActual: boolean; ongoing?: boolean;
@@ -438,12 +438,17 @@ export default function WorktimePage() {
                         : <span className={`text-sm font-medium ${isWe ? "text-red-400" : "text-gray-800 dark:text-gray-200"}`}>{dateNum(dt)}</span>}
                       <span className={`text-[11px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400 dark:text-gray-500"}`}>{dow}</span>
                     </div>
+                    {ad?.weeklyHoliday && (
+                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-300">
+                        {ad.holidayName || "휴일"}
+                      </span>
+                    )}
                     {isT && !hasA ? (
                       <button onClick={() => { const input = prompt("출근 시간 (예: 10:30)", todayClockIn || ""); if (input && /^\d{1,2}:\d{2}$/.test(input.trim())) setClockIn(input.trim()); }}
                         className={`text-[11px] font-mono rounded px-1 py-0.5 ${todayClockIn ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600" : "border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"}`}>
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)!)) : "출근"}
                       </button>
-                    ) : (() => {
+                    ) : ad?.weeklyHoliday ? null : (() => {
                       const actualTotal = (d.workMin || 0) + (d.timeOffMin || 0);
                       const overCap = actualTotal > WORK_CAP_MIN;
                       return (
@@ -580,6 +585,11 @@ export default function WorktimePage() {
                         : <span className={`text-[15px] font-medium ${isWe ? "text-red-400" : "text-gray-800 dark:text-gray-200"}`}>{dateNum(dt)}</span>}
                       <span className={`text-[12px] ${isT ? "text-green-600" : isWe ? "text-red-400" : "text-gray-400 dark:text-gray-500"}`}>{dow}</span>
                     </div>
+                    {ad?.weeklyHoliday && (
+                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-300 whitespace-nowrap">
+                        {ad.holidayName || "휴일"}
+                      </span>
+                    )}
                     {/* 오늘 + actual 없음: 출근시간 입력 가능 */}
                     {isT && !hasA ? (
                       <button
@@ -591,7 +601,7 @@ export default function WorktimePage() {
                       >
                         {todayClockIn ? fmtDur(Math.max(0, nowMin - parseHM(todayClockIn)! - (nowMin > REST_START && parseHM(todayClockIn)! < REST_END ? Math.min(60, nowMin - REST_START) : 0))) : "출근 입력"}
                       </button>
-                    ) : (() => {
+                    ) : ad?.weeklyHoliday ? null : (() => {
                       const actualTotal = (d.workMin || 0) + (d.timeOffMin || 0);
                       const overCap = actualTotal > WORK_CAP_MIN;
                       return (
