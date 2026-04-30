@@ -470,6 +470,10 @@ export default function WorktimePage() {
                       <div key={h} className={`absolute top-0 bottom-0 ${h === 12 ? "border-l border-dashed border-gray-200 dark:border-gray-700" : "border-l border-gray-50 dark:border-gray-800/50"}`} style={{ left: `${mlPct(h * 60)}%` }} />
                     ))}
                     {isCur && isT && <div className="absolute top-0 bottom-0 w-[1px] bg-red-400 z-[4]" style={{ left: `${mlPct(nowMin)}%` }} />}
+                    {/* 공휴일/노동절 등 — 보라색 전일 블록 (휴가 색상 동일) */}
+                    {ad?.weeklyHoliday && (
+                      <div className="absolute top-0 bottom-0 bg-purple-300/80 rounded z-[2]" style={{ left: "0%", right: "0%" }} />
+                    )}
                     {/* plan 바 — 탭하면 바텀시트 */}
                     {!fin && pci != null && pco != null && (
                       <div className="absolute top-0 bottom-0 bg-amber-300/60 rounded cursor-pointer z-[3]"
@@ -635,7 +639,9 @@ export default function WorktimePage() {
                     {isCur && <div className="absolute top-0 bottom-0 w-[1.5px] bg-red-400 z-[4]" style={{ left: `${tlPct(nowMin)}%` }} />}
 
                     <div className="relative" style={{ height: "22px", marginTop: "1px" }}>
-                      {fin ? <ReadonlyTimeline day={am!} /> : (
+                      {ad?.weeklyHoliday ? (
+                        <div className="absolute inset-0 bg-purple-300/80 rounded flex items-center justify-center text-[10px] text-purple-700 dark:text-purple-200">{ad.holidayName || "휴일"}</div>
+                      ) : fin ? <ReadonlyTimeline day={am!} /> : (
                         <>
                           {pd?.timeOffType === "full" ? (
                             <div className="absolute inset-0 bg-purple-300/60 rounded flex items-center justify-center text-[10px] text-purple-600 dark:text-purple-300 cursor-pointer" onClick={() => setSheet({ date: dt, ci: 10 * 60 + 30, co: 19 * 60 + 30, timeOffType: "full" })}>연차</div>

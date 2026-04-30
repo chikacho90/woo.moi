@@ -145,14 +145,18 @@ export async function GET(request: Request) {
     const sched = schedByDate.get(date);
     const attr = attrByDate.get(date);
 
-    // 공휴일/근로자의날 등은 dayOffs(attr 또는 sched)에 항목 있음 — 필수시간 0 처리
+    // dayOffs 분류 — WEEKLY_HOLIDAY/REST_DAY는 토/일 기본 휴무, 그 외는 공휴일/창립기념일/노동절 등
     const dayOffsAll = [
       ...(attr?.dayOffs || []),
       ...(sched?.dayOffs || []),
     ];
-    const isHoliday = dayOffsAll.length > 0;
-    requiredMin += isHoliday ? 0 : (attr?.usualWorkingMinutes || 0);
-    const holidayName = dayOffsAll.find((o) => (o as { name?: string }).name)?.name as string | undefined;
+    const publicHolidays = dayOffsAll.filter(
+      (o) => o.type !== "WEEKLY_HOLIDAY" && o.type !== "REST_DAY",
+    );
+    const hasAnyDayOff = dayOffsAll.length > 0;
+    const isPublicHoliday = publicHolidays.length > 0;
+    requiredMin += hasAnyDayOff ? 0 : (attr?.usualWorkingMinutes || 0);
+    const holidayName = publicHolidays.find((o) => o.name)?.name;
 
     const workBlocks = sched?.timeBlocks?.filter((b) => b.type === "WORK") || [];
     const restBlocks = sched?.timeBlocks?.filter((b) => b.type === "REST") || [];
@@ -255,7 +259,7 @@ export async function GET(request: Request) {
 
     days.push({
       date,
-      weeklyHoliday: isHoliday,
+      weeklyHoliday: isPublicHoliday,
       clockIn,
       clockOut,
       workMin,
