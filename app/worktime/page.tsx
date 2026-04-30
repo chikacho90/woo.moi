@@ -286,9 +286,10 @@ export default function WorktimePage() {
         pRec += r;
       }
     }
-    const planDiff = planProjected - WEEK_REQUIRED_MIN;
-    return { rec: actual, recRem: Math.max(0, WEEK_REQUIRED_MIN - actual), planProjected, planDiff, aRec, pRec };
-  }, [merged, plans, dates, byDate]);
+    const required = data?.requiredMin ?? WEEK_REQUIRED_MIN;
+    const planDiff = planProjected - required;
+    return { rec: actual, recRem: Math.max(0, required - actual), planProjected, planDiff, aRec, pRec, required };
+  }, [merged, plans, dates, byDate, data]);
 
   // 빈 요일 평균 필요시간 + 퇴근 예상시간 계산
   const { hints: dayHints, avgPerDay: avgNeedPerDay } = useMemo(() => {
@@ -322,13 +323,14 @@ export default function WorktimePage() {
         unsettledDays.push({ dt, idx: i, ci });
       }
     }
-    const remaining = Math.max(0, WEEK_REQUIRED_MIN - settledTotal);
+    const required = data?.requiredMin ?? WEEK_REQUIRED_MIN;
+    const remaining = Math.max(0, required - settledTotal);
     const avgPerDay = unsettledDays.length > 0 ? Math.ceil(remaining / unsettledDays.length) : 0;
     for (const { dt } of unsettledDays) {
       hints[dt] = { type: "avg", min: avgPerDay };
     }
     return { hints, avgPerDay };
-  }, [merged, dates, byDate, plans]);
+  }, [merged, dates, byDate, plans, data]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -735,7 +737,7 @@ export default function WorktimePage() {
                   <div className="bg-amber-300 transition-all" style={{ width: `${Math.min(100, (totals.aRec / WEEK_MAX_MIN) * 100)}%` }} />
                   <div className="bg-amber-300/55 transition-all" style={{ width: `${Math.min(100, (totals.pRec / WEEK_MAX_MIN) * 100)}%` }} />
                 </div>
-                <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${(WEEK_REQUIRED_MIN / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
+                <div className="absolute bottom-0 w-[1.5px] bg-gray-300 dark:bg-gray-600" style={{ left: `${((data?.requiredMin ?? WEEK_REQUIRED_MIN) / WEEK_MAX_MIN) * 100}%`, height: "22px" }} />
               </div>
             </div>
           </div>
