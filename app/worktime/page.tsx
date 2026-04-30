@@ -476,7 +476,7 @@ export default function WorktimePage() {
                     })()}
                     {dayHints[dt]?.type === "exit" && (
                       <span className="ml-auto text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        ⏱ {fmtAmPm(fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin))} 퇴근
+                        {fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin)} 퇴근가능
                       </span>
                     )}
                   </div>
@@ -649,7 +649,7 @@ export default function WorktimePage() {
                     )}
                     {dayHints[dt]?.type === "exit" && (
                       <span className="ml-auto text-[12px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        ⏱ {fmtAmPm(fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin))} 퇴근
+                        {fmtHM((dayHints[dt] as { type: "exit"; leaveMin: number }).leaveMin)} 퇴근가능
                       </span>
                     )}
                   </div>
