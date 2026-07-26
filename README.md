@@ -1,4 +1,4 @@
-# wooo.uk
+# woo.moi
 
 Personal site. Next.js + Tailwind CSS.
 
